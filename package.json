@@ -1,0 +1,21 @@
+{
+  "name": "dramabox-scraper",
+  "version": "1.0.0",
+  "description": "Dramabox Scraper by Nb-Community",
+  "main": "dramabox.js",
+  "type": "module",
+  "scripts": {
+    "start": "node dramabox.js"
+  },
+  "keywords": [
+    "dramabox",
+    "scraper",
+    "nodejs",
+    "api"
+  ],
+  "author": "Gienetic",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.0"
+  }
+}
