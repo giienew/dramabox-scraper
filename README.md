@@ -62,7 +62,7 @@ Pastikan Anda sudah menginstall [Node.js](https://nodejs.org/) di perangkat Anda
 
 1.  **Clone Repository ini**
     ```bash
-    git clone [https://github.com/giienew/dramabox-scraper.git](https://github.com/giienew/dramabox-scraper.git)
+    git clone https://github.com/giienew/dramabox-scraper
     cd dramabox-scraper
     ```
 
