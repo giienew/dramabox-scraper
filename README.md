@@ -1,6 +1,6 @@
 # Dramabox Scraper V2 (Full Source Edition)
 
-**Dramabox Scraper V2 - Gienetic Edition.**
+**Dramabox Scraper V2 - Full Source Edition.**
 Script scraper berbasis Node.js yang telah di-update total menggunakan *headers* dan logika terbaru dari aplikasi original versi **4.9.2**. Script ini menggunakan metode **Remote Signing** agar aman digunakan tanpa menyimpan *Private Key* di sisi client.
 
 **Status:** ✅ WORK 100% (VIP & All Menus Unlocked)
