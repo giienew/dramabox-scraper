@@ -1,8 +1,22 @@
-# Dramabox Scraper (Public Version)
+# Dramabox Scraper V2 (Full Source Edition)
 
-Script scraper Dramabox berbasis Node.js yang menggunakan metode **Remote Signing**. Script ini aman untuk digunakan karena logika *Private Key* dan pembuatan *Signature* diproses melalui API Server terpisah, sehingga script client ini bersih, ringan, dan aman.
+**Dramabox Scraper V2 - Gienetic Edition.**
+Script scraper berbasis Node.js yang telah di-update total menggunakan *headers* dan logika terbaru dari aplikasi original versi **4.9.2**. Script ini menggunakan metode **Remote Signing** agar aman digunakan tanpa menyimpan *Private Key* di sisi client.
 
+**Status:** ✅ WORK 100% (VIP & All Menus Unlocked)
 **Powered by: NB Community**
+
+---
+
+## 🔥 What's New in V2?
+
+Berbeda dengan versi lama atau scraper "nanggung" lainnya, versi ini adalah **Full Edition**:
+
+* ✅ **Header Terbaru (v4.9.2):** Menggunakan `p: 51` dan version code terbaru sehingga tidak terdeteksi sebagai aplikasi lawas.
+* ✅ **VIP / Weekly Selection Fixed:** Menu "Anggota Saja" (Member Only) kini muncul dan bisa diambil datanya.
+* ✅ **Full Pagination:** Tidak ada limit 55 record. Script bisa melakukan looping halaman (*load more*) sampai data habis ke akar-akarnya.
+* ✅ **7+ Menu Lengkap:** Mengambil metadata dari hampir seluruh bagian aplikasi.
+* ✅ **Clean Code:** Struktur kode rapi, rata kanan, modular, dan tanpa *encrypted code*.
 
 ---
 
@@ -11,48 +25,51 @@ Script scraper Dramabox berbasis Node.js yang menggunakan metode **Remote Signin
 Mohon dibaca dengan teliti sebelum menggunakan script ini:
 
 1.  **TIDAK UNTUK DIPERJUALBELIKAN!**
-    Script ini dibagikan secara **GRATIS** dan *Open Source* untuk tujuan edukasi. Saya sangat berharap tidak ada pihak yang tidak beretika yang mencoba mengambil keuntungan materi dengan menjual script ini. Tolong hargai karya orang lain.
+    Script ini dibagikan secara **GRATIS** dan *Open Source* untuk tujuan edukasi. Jangan menjadi pihak tidak beretika yang mencoba mengambil keuntungan materi dari kode ini.
+    
+2.  **JANGAN HANYA PAMER JSON**
+    Gunakan script ini untuk belajar struktur API, *HTTP Request*, dan *Data Mining*. Pahami kodenya, jangan cuma asal run.
 
-2.  **STATUS TOKEN**
-    Token dan Signature yang digunakan dalam script ini disediakan oleh server **NB Community**.
-    * Token bersifat *shared* (bisa digunakan bersama oleh komunitas).
-    * **Token bisa dibekukan (banned/freeze) kapan saja** oleh pihak NB Community atau Dramabox pusat jika terjadi indikasi penyalahgunaan (spam) atau update sistem.
-    * Gunakan dengan bijak.
+3.  **STATUS TOKEN**
+    Token dan Signature disediakan oleh server **NB Community**.
+    * Token bersifat *shared*.
+    * **Token bisa dibekukan (banned)** jika terjadi penyalahgunaan (spam request berlebihan). Gunakan delay yang wajar.
 
 ---
 
-## 🛠️ Fitur Utama
+## 🛠️ Fitur & Menu Tersedia
 
-* **Auto Token Generator:** Mengambil Token & Device ID valid secara otomatis dari server API tanpa perlu login manual.
-* **Remote Signing:** Membuat Signature (`sn`) valid secara otomatis tanpa perlu menyimpan Private Key di script lokal Anda.
-* **Search Drama:** Mencari judul drama berdasarkan kata kunci.
-* **Latest Drama:** Mengambil daftar drama terbaru (Theater).
-* **Unlimited Episodes:** Mengambil daftar episode secara massal (batch fetch) tanpa batas paging.
+Script ini mampu mengambil data dari menu-menu berikut:
+
+1.  **Search Drama:** Cari drama berdasarkan kata kunci.
+2.  **Latest / Theater:** Daftar drama terbaru dengan fitur *pagination* (halaman berlanjut).
+3.  **For You:** Rekomendasi drama berdasarkan algoritma (Recommended).
+4.  **Coming Soon:** Daftar drama yang akan tayang (Reserve).
+5.  **Top Ranking:**
+    * Sedang Tren
+    * Pencarian Populer
+    * Terbaru
+6.  **VIP / Weekly Selection:** Daftar drama pilihan editor / berbayar.
+7.  **Classify (Jelajah):** Browsing drama berdasarkan kategori/filter.
+8.  **Get Episodes:** Mengambil *list* episode lengkap secara massal (Batch Fetch).
 
 ---
 
 ## ℹ️ Informasi Teknis
 
-Script ini bekerja dengan melakukan request langsung ke API resmi Dramabox. Berikut adalah detail endpoint yang digunakan:
+Script ini bekerja dengan melakukan simulasi request persis seperti aplikasi Android aslinya:
 
-1.  **API Signer (Auth)**
-    * **URL:** `https://nb-dramabox-gentoken.vercel.app`
-    * **Fungsi:** Mengambil Token JWT, Device ID, dan membuat *Digital Signature* (`sn`) secara remote.
+* **App Version Simulated:** `4.9.2`
+* **Header Params:** `p: 51`, `vn: 4.9.2`, `apn: 1`
+* **Signature:** Generated via Remote API (Secure).
 
-2.  **Search Drama**
-    * **Endpoint:** `https://sapi.dramaboxdb.com/drama-box/search/suggest`
-    * **Method:** `POST`
-    * **Fungsi:** Mencari judul drama berdasarkan kata kunci (`keyword`) yang diinput user.
-
-3.  **Latest / Theater**
-    * **Endpoint:** `https://sapi.dramaboxdb.com/drama-box/he001/theater`
-    * **Method:** `POST`
-    * **Fungsi:** Mengambil daftar drama terbaru atau yang sedang tayang di halaman utama aplikasi (Channel ID 43).
-
-4.  **Get Episodes (Batch)**
-    * **Endpoint:** `https://sapi.dramaboxdb.com/drama-box/chapterv2/batch/load`
-    * **Method:** `POST`
-    * **Fungsi:** Mengambil daftar episode secara massal (*batching*). Script melakukan *looping* otomatis pada endpoint ini untuk mengambil seluruh episode dari awal hingga akhir.
+### Endpoint Coverage:
+* `/search/suggest` (Search)
+* `/he001/theater` (Latest, VIP, For You)
+* `/he001/rank` (Top Charts)
+* `/he001/reserveBook` (Coming Soon)
+* `/he001/classify` (Categories)
+* `/chapterv2/batch/load` (Episodes)
 
 ---
 
@@ -62,7 +79,7 @@ Pastikan Anda sudah menginstall [Node.js](https://nodejs.org/) di perangkat Anda
 
 1.  **Clone Repository ini**
     ```bash
-    git clone https://github.com/giienew/dramabox-scraper
+    git clone [https://github.com/giienew/dramabox-scraper](https://github.com/giienew/dramabox-scraper)
     cd dramabox-scraper
     ```
 
@@ -81,11 +98,16 @@ Pastikan Anda sudah menginstall [Node.js](https://nodejs.org/) di perangkat Anda
 
 ## 📂 Struktur Output File
 
-Hasil scraping akan disimpan secara otomatis dalam format JSON di folder yang sama agar mudah diolah:
+Hasil scraping akan disimpan secara otomatis dalam format JSON yang rapi:
 
-* **`result_search.json`** : Berisi hasil pencarian drama (ID, Judul, Cover).
-* **`result_latest.json`** : Berisi daftar drama yang sedang trending/terbaru.
-* **`result_episode.json`** : Berisi daftar lengkap episode dari drama yang dipilih (Link, Durasi, Judul).
+* `result_search.json`
+* `latest_page_X.json` (Per halaman)
+* `result_vip.json`
+* `result_foryou.json`
+* `rank_type_X.json`
+* `result_coming_soon.json`
+* `classify_page_X.json`
+* `result_episode.json`
 
 ---
 
@@ -94,5 +116,4 @@ Hasil scraping akan disimpan secara otomatis dalam format JSON di folder yang sa
 * **Author:** Gienetic
 * **Provider:** NB Community
 
-*Dibuat dengan ❤️ untuk komunitas coding Indonesia.*# dramabox-scraper
-# dramabox-scraper
+*Dibuat dengan ❤️ dan Kopi. Silakan comot, gratis.*
