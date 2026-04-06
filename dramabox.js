@@ -1,9 +1,9 @@
 /*
- * Dramabox Scraper Snippet V3 (Version 4.4.2)
+ * Dramabox Scraper Snippet V3 (Ultimate Edition - V5.6.1 Bypass)
  * Created by Gienetic 
  * Powered by Custom API & Ultimate Akamai Bypass
  */
- 
+
 import axios from "axios";
 import readline from "readline";
 import fs from "fs";
@@ -87,9 +87,13 @@ function saveToFile(filename, data) {
 async function postRequest(endpoint, body) {
     const signData = await getRemoteSignature(body);
     if (!signData) {
-        return { success: false, error: "Signature Failed" };
+        return {
+            success: false,
+            error: "Signature Failed"
+        };
     }
 
+    // Header disesuaikan dengan capture versi 5.6.1 terbaru
     const headers = {
         "mchid": "DRA1000042",
         "tz": "-420",
@@ -115,7 +119,7 @@ async function postRequest(endpoint, body) {
         "package-name": "com.storymatrix.drama",
         "android-id": session.androidid,
         "srn": "1080x2160",
-        "p": "45",
+        "p": "60",
         "is_vpn": "1",
         "build": "Build/QQ3A.200805.001",
         "pline": "ANDROID",
@@ -131,22 +135,31 @@ async function postRequest(endpoint, body) {
         "Connection": "Keep-Alive"
     };
 
-    const fullEndpoint = endpoint.includes('?') 
-        ? `${endpoint}&timestamp=${signData.timestamp}` 
-        : `${endpoint}?timestamp=${signData.timestamp}`;
+    const fullEndpoint = endpoint.includes('?') ?
+        `${endpoint}&timestamp=${signData.timestamp}` :
+        `${endpoint}?timestamp=${signData.timestamp}`;
 
     try {
-        const response = await axios.post(fullEndpoint, body, { 
-            headers, 
+        const response = await axios.post(fullEndpoint, body, {
+            headers,
             httpsAgent: androidHttpsAgent,
-            timeout: 10000 
+            timeout: 10000
         });
         if (response.data && response.data.data) {
-            return { success: true, data: response.data.data };
+            return {
+                success: true,
+                data: response.data.data
+            };
         }
-        return { success: false, error: "Empty Data" };
+        return {
+            success: false,
+            error: "Empty Data"
+        };
     } catch (error) {
-        return { success: false, error: error.message };
+        return {
+            success: false,
+            error: error.message
+        };
     }
 }
 
@@ -159,7 +172,9 @@ const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
 async function doSearch() {
     console.log(`\n[ Search Drama ]`);
     const keyword = await ask("Keyword: ");
-    const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/search/suggest", { "keyword": keyword });
+    const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/search/suggest", {
+        "keyword": keyword
+    });
 
     if (res.success && res.data.suggestList) {
         console.log(JSON.stringify(res.data.suggestList, null, 2));
@@ -178,10 +193,10 @@ async function doLatest() {
         console.log(`\n--- Page ${page} ---`);
         const body = {
             "newChannelStyle": 1,
-            "isNeedRank":      1,
-            "pageNo":          page,
-            "index":           1,
-            "channelId":       43
+            "isNeedRank": 1,
+            "pageNo": page,
+            "index": 1,
+            "channelId": 43
         };
 
         const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/theater", body);
@@ -209,10 +224,10 @@ async function doLatest() {
 async function doGetForYou() {
     console.log(`\n[ For You / Recommended ]`);
     const body = {
-        "homePageStyle":    0,
-        "isNeedRank":       1,
+        "homePageStyle": 0,
+        "isNeedRank": 1,
         "isNeedNewChannel": 1,
-        "type":             0
+        "type": 0
     };
 
     const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/theater", body);
@@ -243,7 +258,9 @@ async function doGetComingSoon() {
     if (res.success && res.data.reserveBookList && res.data.reserveBookList.length > 0) {
         const books = res.data.reserveBookList;
         books.forEach(book => {
-            const releaseDate = new Date(book.bookShelfTime).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
+            const releaseDate = new Date(book.bookShelfTime).toLocaleString('id-ID', {
+                timeZone: 'Asia/Jakarta'
+            });
             console.log(`[${book.bookId}] ${book.bookName}`);
             console.log(`   Rilis: ${releaseDate}`);
             console.log(`   Eps:   ${book.chapterCount} | Tags: ${book.tags.join(", ")}`);
@@ -261,16 +278,18 @@ async function doGetRank() {
     console.log(`1. Sedang Tren`);
     console.log(`2. Pencarian Populer`);
     console.log(`3. Terbaru`);
-    
+
     const choice = await ask("Pilih Kategori Rank (1-3): ");
     const rankType = ['1', '2', '3'].includes(choice.trim()) ? parseInt(choice.trim()) : 2;
-    
-    const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/rank", { "rankType": rankType });
+
+    const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/rank", {
+        "rankType": rankType
+    });
 
     if (res.success && res.data.rankList && res.data.rankList.length > 0) {
         const categoryName = res.data.rankTypeVoList.find(r => r.rankType === rankType)?.rankName || "Rank";
         console.log(`\n=== ${categoryName} ===`);
-        
+
         const books = res.data.rankList;
         books.forEach((book, index) => {
             console.log(`#${index + 1} [${book.bookId}] ${book.bookName}`);
@@ -290,10 +309,10 @@ async function doGetVip() {
     console.log(`\n[ VIP / Weekly Selection ]`);
     const body = {
         "homePageStyle": 0,
-        "isNeedRank":    1,
-        "index":         4,
-        "type":          0,
-        "channelId":     205
+        "isNeedRank": 1,
+        "index": 4,
+        "type": 0,
+        "channelId": 205
     };
 
     const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/theater", body);
@@ -306,7 +325,7 @@ async function doGetVip() {
                 column.bookList.forEach(book => {
                     const badge = (book.corner && book.corner.name) ? `[${book.corner.name}]` : "";
                     const tags = book.tags ? book.tags.join(", ") : "-";
-                    
+
                     console.log(`${badge} [${book.bookId}] ${book.bookName}`);
                     console.log(`   Views: ${book.playCount} | Eps: ${book.chapterCount}`);
                     console.log(`   Tags:  ${tags}`);
@@ -331,10 +350,10 @@ async function doGetClassify() {
     while (keepFetching) {
         console.log(`\n--- Page ${page} ---`);
         const body = {
-            "typeList":   [], 
+            "typeList": [],
             "showLabels": true,
-            "pageNo":     page,
-            "pageSize":   15
+            "pageNo": page,
+            "pageSize": 15
         };
 
         const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/classify", body);
@@ -360,44 +379,83 @@ async function doGetClassify() {
     }
 }
 
+
 async function doGetEpisodes() {
-    console.log(`\n[ Get Unlimited Episodes ]`);
+    console.log(`\n[ Get Unlimited Episodes (Raw Data) ]`);
     const bookId = await ask("Book ID: ");
-    console.log(`Starting scraper for ID: ${bookId}...`);
+    console.log(`Mulai mengambil raw data untuk ID: ${bookId}...`);
 
     let allEpisodesRaw = [];
-    let currentIndex = 1;
+    let currentIndex = -1; // Request tarikan pertama (Initial Load)
     let keepGoing = true;
+    let batchCount = 1;
 
     while (keepGoing) {
-        process.stdout.write(`\rFetching batch starting at ${currentIndex}... `);
+        process.stdout.write(`\r--> Memuat batch ke-${batchCount} (Meneruskan dari Index: ${currentIndex})... `);
+        
+        // Payload cerdas menggunakan data validasi langsung dari aplikasi versi terbaru
         const body = {
-            "boundaryIndex":          0,
-            "index":                  currentIndex,
-            "currencyPlaySource":     "ssym_ssjg",
-            "currencyPlaySourceName": "搜索页面搜索结果",
-            "preLoad":                false,
-            "bookId":                 bookId
+            "boundaryIndex": 0, 
+            "index": parseInt(currentIndex), 
+            "currencyPlaySource": "ssym_rank_search",
+            "needEndRecommend": 0,
+            "currencyPlaySourceName": "搜索页面热门搜索_热搜榜",
+            "preLoad": false,
+            "rid": "",
+            "pullCid": "",
+            "enterReaderChapterIndex": 0,
+            "loadDirection": currentIndex === -1 ? 0 : 2, // 0 = Load Awal, 2 = Load More (Scroll Bawah)
+            "bookId": String(bookId)
         };
 
         const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/chapterv2/batch/load", body);
 
         if (res.success && res.data.chapterList && res.data.chapterList.length > 0) {
-            allEpisodesRaw = allEpisodesRaw.concat(res.data.chapterList);
-            currentIndex += 5;
-            await new Promise(r => setTimeout(r, 200));
+            const chapters = res.data.chapterList;
+            
+            // Filter cerdas: Abaikan jika ada episode yang tumpang tindih / berulang
+            const newChapters = chapters.filter(newEps => 
+                !allEpisodesRaw.some(existEps => existEps.chapterId === newEps.chapterId)
+            );
+
+            if (newChapters.length === 0) {
+                console.log("\n⚠️ Loop mendeteksi data berulang. Ekstraksi dihentikan otomatis.");
+                keepGoing = false;
+                break;
+            }
+
+            // Memasukkan array mentah ke wadah utama
+            allEpisodesRaw = allEpisodesRaw.concat(newChapters);
+            
+            // Kursor untuk request batch berikutnya dari episode paling terakhir
+            const lastChapter = newChapters[newChapters.length - 1];
+            currentIndex = parseInt(lastChapter.chapterIndex);
+            batchCount++;
+
+            // Jika API memberikan kurang dari 5 chapter, artinya itu adalah batch terakhir
+            if (chapters.length < 5) {
+                console.log(`\n✅ Ujung akhir episode telah ditemukan.`);
+                keepGoing = false;
+            }
+            
+            // Delay santai untuk mengelabui Akamai WAF
+            await new Promise(r => setTimeout(r, 400)); 
         } else {
-            console.log("Done.");
+            console.log(`\n❌ Proses terhenti (API merespon kosong / End of List).`);
             keepGoing = false;
         }
     }
-    console.log(`\nTotal Episodes: ${allEpisodesRaw.length}`);
-    saveToFile("result_episode.json", allEpisodesRaw);
+    
+    // Finalisasi: Sorting array berdasarkan chapterIndex agar data tersimpan sempurna berurutan (EP 1, EP 2, EP 3...)
+    allEpisodesRaw.sort((a, b) => a.chapterIndex - b.chapterIndex);
+
+    console.log(`\n🎉 SELESAI! Berhasil menarik total ${allEpisodesRaw.length} raw episodes secara lengkap.`);
+    saveToFile(`raw_episodes_${bookId}.json`, allEpisodesRaw);
 }
 
 async function main() {
     console.clear();
-    console.log("Dramabox Scraper V3 (Final Client API) - Gienetic");
+    console.log("Dramabox Scraper V4 (Ultimate Edition) - Gienetic");
 
     if (await generateToken()) {
         while (true) {
@@ -409,21 +467,39 @@ async function main() {
             console.log(`5. Top Ranking / Charts`);
             console.log(`6. VIP / Weekly Selection`);
             console.log(`7. Classify / Jelajah Kategori`);
-            console.log(`8. Get Episodes`);
+            console.log(`8. Get Episodes (Raw Data)`);
             console.log(`9. Exit`);
-            
+
             const c = await ask("Select: ");
             switch (c.trim()) {
-                case "1": await doSearch(); break;
-                case "2": await doLatest(); break;
-                case "3": await doGetForYou(); break;
-                case "4": await doGetComingSoon(); break;
-                case "5": await doGetRank(); break;
-                case "6": await doGetVip(); break;
-                case "7": await doGetClassify(); break;
-                case "8": await doGetEpisodes(); break;
-                case "9": process.exit(0);
-                default: console.log("Invalid selection.");
+                case "1":
+                    await doSearch();
+                    break;
+                case "2":
+                    await doLatest();
+                    break;
+                case "3":
+                    await doGetForYou();
+                    break;
+                case "4":
+                    await doGetComingSoon();
+                    break;
+                case "5":
+                    await doGetRank();
+                    break;
+                case "6":
+                    await doGetVip();
+                    break;
+                case "7":
+                    await doGetClassify();
+                    break;
+                case "8":
+                    await doGetEpisodes();
+                    break;
+                case "9":
+                    process.exit(0);
+                default:
+                    console.log("Invalid selection.");
             }
         }
     } else {
