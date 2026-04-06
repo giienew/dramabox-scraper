@@ -1,14 +1,14 @@
-# Dramabox Scraper V2 (Full Source Edition)
+# Dramabox Scraper V3 (Full Source Edition)
 
-**Dramabox Scraper V2 - Full Source Edition.**
-Script scraper berbasis Node.js yang telah di-update total menggunakan *headers* dan logika terbaru dari aplikasi original versi **4.9.2**. Script ini menggunakan metode **Remote Signing** agar aman digunakan tanpa menyimpan *Private Key* di sisi client.
+**Dramabox Scraper V3 - Full Source Edition.**
+Script scraper berbasis Node.js yang telah di-update total menggunakan *headers* dan logika terbaru dari aplikasi original versi **5.6.1**. Script ini menggunakan metode **Remote Signing** agar aman digunakan tanpa menyimpan *Private Key* di sisi client.
 
 **Status:** ✅ WORK 100% (VIP & All Menus Unlocked)
 **Powered by: NB Community**
 
 ---
 
-## 🔥 What's New in V2?
+## 🔥 What's New in V3?
 
 Berbeda dengan versi lama atau scraper "nanggung" lainnya, versi ini adalah **Full Edition**:
 
@@ -69,7 +69,7 @@ Script ini bekerja dengan melakukan simulasi request persis seperti aplikasi And
 * `/he001/rank` (Top Charts)
 * `/he001/reserveBook` (Coming Soon)
 * `/he001/classify` (Categories)
-* `/chapterv2/batch/load` (Episodes)
+* `/chapterV2/batch/load` (Episodes)
 
 ---
 

@@ -1,11 +1,13 @@
 /*
- * Dramabox Scraper Snippet V2
+ * Dramabox Scraper Snippet V3 (Version 4.4.2)
  * Created by Gienetic 
+ * Powered by Custom API & Ultimate Akamai Bypass
  */
  
 import axios from "axios";
 import readline from "readline";
 import fs from "fs";
+import https from "https";
 
 const API_BASE = "https://nb-dramabox-gentoken.vercel.app";
 
@@ -15,16 +17,30 @@ let session = {
     androidid: ""
 };
 
+delete axios.defaults.headers.common['Accept'];
+
+const androidHttpsAgent = new https.Agent({
+    ciphers: [
+        "TLS_AES_128_GCM_SHA256",
+        "TLS_AES_256_GCM_SHA384",
+        "TLS_CHACHA20_POLY1305_SHA256",
+        "ECDHE-ECDSA-AES128-GCM-SHA256",
+        "ECDHE-RSA-AES128-GCM-SHA256"
+    ].join(':'),
+    honorCipherOrder: true,
+    minVersion: 'TLSv1.2'
+});
+
 async function generateToken() {
     try {
-        console.log("--> Menghubungkan ke API Server...");
+        console.log("--> Menghubungkan ke API Server Pribadi (Vercel)...");
         const res = await axios.get(`${API_BASE}/generate-token`);
         if (res.data && res.data.status && res.data.data) {
             const data = res.data.data;
             session.token = data.sn;
             session.deviceid = data.device_id;
             session.androidid = data.android_id;
-            console.log("--> Login Berhasil");
+            console.log("--> Login Berhasil. Sesi tersimpan.");
             return true;
         }
         return false;
@@ -43,7 +59,7 @@ async function getRemoteSignature(bodyPayload) {
             token: session.token
         });
         if (res.data && res.data.status) {
-            return res.data.data.sn;
+            return res.data.data;
         }
         return null;
     } catch (error) {
@@ -69,34 +85,62 @@ function saveToFile(filename, data) {
 }
 
 async function postRequest(endpoint, body) {
-    const signature = await getRemoteSignature(body);
-    if (!signature) {
+    const signData = await getRemoteSignature(body);
+    if (!signData) {
         return { success: false, error: "Signature Failed" };
     }
 
     const headers = {
-        "User-Agent":       "okhttp/4.10.0",
-        "Accept-Encoding":  "gzip",
-        "Content-Type":     "application/json; charset=UTF-8",
-        "tn":               `Bearer ${session.token}`,
-        "version":          "492",
-        "vn":               "4.9.2",
-        "package-name":     "com.storymatrix.drama",
-        "p":                "51",
-        "cid":              "DALPF1068349",
-        "apn":              "1",
-        "device-id":        session.deviceid,
-        "local-time":       getLocalTime(),
-        "time-zone":        "+0700",
-        "userid":           "385170795",
-        "android-id":       session.androidid,
-        "sn":               signature,
-        "language":         "in",
-        "current-language": "in"
+        "mchid": "DRA1000042",
+        "tz": "-420",
+        "language": "in",
+        "mcc": "510",
+        "locale": "in_ID",
+        "is_root": "1",
+        "device-id": session.deviceid,
+        "nchid": "DRA1000042",
+        "md": "Redmi Note 5",
+        "store-source": "store_google",
+        "mf": "XIAOMI",
+        "local-time": getLocalTime(),
+        "time-zone": "+0700",
+        "brand": "Xiaomi",
+        "apn": "1",
+        "lat": "0",
+        "is_emulator": "0",
+        "current-language": "in",
+        "ov": "10",
+        "version": "561",
+        "afid": Date.now() + "-" + Math.floor(Math.random() * 9999999999999999),
+        "package-name": "com.storymatrix.drama",
+        "android-id": session.androidid,
+        "srn": "1080x2160",
+        "p": "45",
+        "is_vpn": "1",
+        "build": "Build/QQ3A.200805.001",
+        "pline": "ANDROID",
+        "vn": "5.6.1",
+        "over-flow": "new-fly",
+        "tn": `Bearer ${session.token}`,
+        "cid": "DRA1000042",
+        "sn": signData.sn,
+        "active-time": "1297",
+        "content-type": "application/json; charset=UTF-8",
+        "accept-encoding": "gzip",
+        "user-agent": "okhttp/4.10.0",
+        "Connection": "Keep-Alive"
     };
 
+    const fullEndpoint = endpoint.includes('?') 
+        ? `${endpoint}&timestamp=${signData.timestamp}` 
+        : `${endpoint}?timestamp=${signData.timestamp}`;
+
     try {
-        const response = await axios.post(endpoint, body, { headers, timeout: 10000 });
+        const response = await axios.post(fullEndpoint, body, { 
+            headers, 
+            httpsAgent: androidHttpsAgent,
+            timeout: 10000 
+        });
         if (response.data && response.data.data) {
             return { success: true, data: response.data.data };
         }
@@ -353,7 +397,7 @@ async function doGetEpisodes() {
 
 async function main() {
     console.clear();
-    console.log("Dramabox Scraper V2 (Full Latest Version) - Gienetic");
+    console.log("Dramabox Scraper V3 (Final Client API) - Gienetic");
 
     if (await generateToken()) {
         while (true) {
