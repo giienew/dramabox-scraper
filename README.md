@@ -1,22 +1,22 @@
-# Dramabox Scraper V3 (Full Source Edition)
+# Dramabox Scraper V4 (Ultimate Edition)
 
-**Dramabox Scraper V3 - Full Source Edition.**
-Script scraper berbasis Node.js yang telah di-update total menggunakan *headers* dan logika terbaru dari aplikasi original versi **5.6.1**. Script ini menggunakan metode **Remote Signing** agar aman digunakan tanpa menyimpan *Private Key* di sisi client.
+**Dramabox Scraper V4 - Ultimate Edition.**
+Script scraper berbasis Node.js yang telah di-upgrade secara masif menggunakan *headers* dan logika terbaru dari aplikasi original versi **5.6.1**. Script ini menggunakan metode **Remote Signing** untuk keamanan dan telah dilengkapi dengan **Exsala Video Decryptor** untuk mengekstrak URL streaming secara langsung.
 
-**Status:** ✅ WORK 100% (VIP & All Menus Unlocked)
-**Powered by: NB Community**
+**Status:** ✅ WORK 100% (VIP, All Menus Unlocked, & Video Decryptor)  
+**Powered by:** Exsala API & NB Community
 
 ---
 
-## 🔥 What's New in V3?
+## 🔥 What's New in V4 (Ultimate Edition)?
 
-Berbeda dengan versi lama atau scraper "nanggung" lainnya, versi ini adalah **Full Edition**:
+Versi ini membawa perubahan besar-besaran dari versi sebelumnya, menjadikannya alat *data mining* terlengkap untuk Dramabox:
 
-* ✅ **Header Terbaru (v4.9.2):** Menggunakan `p: 51` dan version code terbaru sehingga tidak terdeteksi sebagai aplikasi lawas.
-* ✅ **VIP / Weekly Selection Fixed:** Menu "Anggota Saja" (Member Only) kini muncul dan bisa diambil datanya.
-* ✅ **Full Pagination:** Tidak ada limit 55 record. Script bisa melakukan looping halaman (*load more*) sampai data habis ke akar-akarnya.
-* ✅ **7+ Menu Lengkap:** Mengambil metadata dari hampir seluruh bagian aplikasi.
-* ✅ **Clean Code:** Struktur kode rapi, rata kanan, modular, dan tanpa *encrypted code*.
+* ✅ **Header & Endpoint Terbaru (v5.6.1):** Menggunakan `p: 60` dan version code terbaru agar aman dari WAF Akamai. Endpoint pencarian di-upgrade ke `/search/search` dengan dukungan filter dinamis.
+* ✅ **Smart Auto-Pagination:** Tidak ada lagi konfirmasi manual (y/n). Script akan membaca parameter `pages` dan `isMore` dari server untuk menguras seluruh halaman hingga akar-akarnya.
+* ✅ **Advanced Search Filter:** Mendukung pencarian spesifik berdasarkan: Sedang Tren (Trending), Terbaru (Latest), dan Belum Ditonton (Unwatched).
+* ✅ **Exsala Video Decryptor:** Fitur pemungkas (Menu 9) untuk men-decrypt URL MP4/M3U8 yang terenkripsi (`.encrypt.mp4`) menjadi *link* siap putar menggunakan Proxy API Exsala.
+* ✅ **Clean & Professional Code:** Struktur kode modular, penamaan file *output* dinamis sesuai *keyword*, dan bersih dari komentar *spam*.
 
 ---
 
@@ -28,48 +28,47 @@ Mohon dibaca dengan teliti sebelum menggunakan script ini:
     Script ini dibagikan secara **GRATIS** dan *Open Source* untuk tujuan edukasi. Jangan menjadi pihak tidak beretika yang mencoba mengambil keuntungan materi dari kode ini.
     
 2.  **JANGAN HANYA PAMER JSON**
-    Gunakan script ini untuk belajar struktur API, *HTTP Request*, dan *Data Mining*. Pahami kodenya, jangan cuma asal run.
+    Gunakan script ini untuk belajar struktur API, *HTTP Request*, sistem *Pagination*, dan *Data Mining*. Pahami kodenya, jangan cuma asal eksekusi.
 
-3.  **STATUS TOKEN**
-    Token dan Signature disediakan oleh server **NB Community**.
+3.  **STATUS TOKEN & API**
+    Token dan Signature disediakan oleh server **Exsala API / NB Community**.
     * Token bersifat *shared*.
-    * **Token bisa dibekukan (banned)** jika terjadi penyalahgunaan (spam request berlebihan). Gunakan delay yang wajar.
+    * **Token bisa dibekukan (banned)** jika terjadi penyalahgunaan (spam request berlebihan tanpa *delay*). Script ini sudah dibekali *delay* otomatis untuk mengelabui proteksi.
 
 ---
 
 ## 🛠️ Fitur & Menu Tersedia
 
-Script ini mampu mengambil data dari menu-menu berikut:
+Script ini menyediakan 9 menu scraping yang komprehensif:
 
-1.  **Search Drama:** Cari drama berdasarkan kata kunci.
-2.  **Latest / Theater:** Daftar drama terbaru dengan fitur *pagination* (halaman berlanjut).
-3.  **For You:** Rekomendasi drama berdasarkan algoritma (Recommended).
-4.  **Coming Soon:** Daftar drama yang akan tayang (Reserve).
-5.  **Top Ranking:**
-    * Sedang Tren
-    * Pencarian Populer
-    * Terbaru
-6.  **VIP / Weekly Selection:** Daftar drama pilihan editor / berbayar.
-7.  **Classify (Jelajah):** Browsing drama berdasarkan kategori/filter.
-8.  **Get Episodes:** Mengambil *list* episode lengkap secara massal (Batch Fetch).
+1.  **Search Drama:** Cari drama dengan fitur *Smart Filter* (Trending/Latest/Unwatched) & *Auto-Pagination*.
+2.  **Latest / Newest:** Daftar drama terbaru rilis (*Full Auto-Pagination*).
+3.  **For You / Recommended:** Rekomendasi drama berdasarkan algoritma.
+4.  **Coming Soon:** Daftar drama yang akan tayang (beserta konversi waktu rilis lokal).
+5.  **Top Ranking / Charts:** Scraping Leaderboard (Sedang Tren, Pencarian Populer, Terbaru).
+6.  **VIP / Weekly Selection:** Daftar drama eksklusif pilihan editor.
+7.  **Classify (Jelajah):** Browsing semua drama berdasarkan kategori (*Full Auto-Pagination*).
+8.  **Get Episodes (Raw Data):** Ekstraksi metadata episode mentah (termasuk array `cdnList` yang berisi URL Video).
+9.  **Decrypt Video URL:** Mengubah URL video mentah yang terenkripsi menjadi URL streaming murni menggunakan Exsala Proxy.
 
 ---
 
 ## ℹ️ Informasi Teknis
 
-Script ini bekerja dengan melakukan simulasi request persis seperti aplikasi Android aslinya:
+Script ini mensimulasikan *request* persis seperti aplikasi Android aslinya:
 
-* **App Version Simulated:** `4.9.2`
-* **Header Params:** `p: 51`, `vn: 4.9.2`, `apn: 1`
-* **Signature:** Generated via Remote API (Secure).
+* **App Version Simulated:** `5.6.1`
+* **Header Params:** `p: 60`, `vn: 5.6.1`, `apn: 1`
+* **Signature:** Generated via Remote Vercel API.
+* **Decryptor Engine:** `https://exsalapi.my.id/api/video/decrypt-proxy`
 
 ### Endpoint Coverage:
-* `/search/suggest` (Search)
+* `/search/search` (Advanced Search)
 * `/he001/theater` (Latest, VIP, For You)
 * `/he001/rank` (Top Charts)
 * `/he001/reserveBook` (Coming Soon)
 * `/he001/classify` (Categories)
-* `/chapterV2/batch/load` (Episodes)
+* `/chapterv2/batch/load` (Raw Episodes & CDN Links)
 
 ---
 
@@ -85,7 +84,7 @@ Pastikan Anda sudah menginstall [Node.js](https://nodejs.org/) di perangkat Anda
 
 2.  **Install Module yang Dibutuhkan**
     ```bash
-    npm install axios readline fs
+    npm install axios readline fs https
     ```
     *(Atau cukup ketik `npm install` jika file package.json sudah tersedia)*
 
@@ -98,22 +97,23 @@ Pastikan Anda sudah menginstall [Node.js](https://nodejs.org/) di perangkat Anda
 
 ## 📂 Struktur Output File
 
-Hasil scraping akan disimpan secara otomatis dalam format JSON yang rapi:
+Hasil scraping akan disimpan secara otomatis dalam format JSON yang rapi dan terfilter regex:
 
-* `result_search.json`
-* `latest_page_X.json` (Per halaman)
-* `result_vip.json`
-* `result_foryou.json`
-* `rank_type_X.json`
-* `result_coming_soon.json`
-* `classify_page_X.json`
-* `result_episode.json`
+* `search_[Kategori]_[Keyword].json`
+* `latest_full_release.json`
+* `vip_exclusive.json`
+* `foryou_recommended.json`
+* `rank_[NamaKategori].json`
+* `coming_soon.json`
+* `classify_full.json`
+* `raw_episodes_[BookID].json`
 
 ---
 
 ## 🤝 Credits
 
 * **Author:** Gienetic
+* **Decryptor Engine:** Exsala API
 * **Provider:** NB Community
 
-*Dibuat dengan ❤️ dan Kopi. Silakan comot, gratis.*
+*Dibuat dengan ❤️ dan Kopi. Silakan fork, pelajari, dan kembangkan!*
