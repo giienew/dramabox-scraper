@@ -1,6 +1,6 @@
-# Dramabox Scraper V4 (Ultimate Edition)
+# Dramabox Scraper V5 (Ultimate Edition)
 
-**Dramabox Scraper V4 - Ultimate Edition.**
+**Dramabox Scraper V5 - Ultimate Edition.**
 Script scraper berbasis Node.js yang telah di-upgrade secara masif menggunakan *headers* dan logika terbaru dari aplikasi original versi **5.6.1**. Script ini menggunakan metode **Remote Signing** untuk keamanan dan telah dilengkapi dengan **Exsala Video Decryptor** untuk mengekstrak URL streaming secara langsung.
 
 **Status:** ✅ WORK 100% (VIP, All Menus Unlocked, & Video Decryptor)  
@@ -8,7 +8,7 @@ Script scraper berbasis Node.js yang telah di-upgrade secara masif menggunakan *
 
 ---
 
-## 🔥 What's New in V4 (Ultimate Edition)?
+## 🔥 What's New in V5 (Ultimate Edition)?
 
 Versi ini membawa perubahan besar-besaran dari versi sebelumnya, menjadikannya alat *data mining* terlengkap untuk Dramabox:
 
@@ -60,7 +60,7 @@ Script ini mensimulasikan *request* persis seperti aplikasi Android aslinya:
 * **App Version Simulated:** `5.6.1`
 * **Header Params:** `p: 60`, `vn: 5.6.1`, `apn: 1`
 * **Signature:** Generated via Remote Vercel API.
-* **Decryptor Engine:** `https://exsalapi.my.id/api/video/decrypt-proxy`
+* **Decryptor Engine:** `https://exsalapi.my.id/api/tools/dramabox/decrypt-video`
 
 ### Endpoint Coverage:
 * `/search/search` (Advanced Search)

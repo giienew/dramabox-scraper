@@ -1,5 +1,5 @@
 /*
- * Dramabox Scraper V4 (Ultimate Edition - Full Scrape API)
+ * Dramabox Scraper V5 (Ultimate Edition - Full Scrape API)
  * Created by Gienetic 
  * Powered by Custom API, Exsala Proxy & Ultimate Akamai Bypass
  * GitHub Ready Release
