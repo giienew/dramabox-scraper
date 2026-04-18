@@ -360,7 +360,7 @@ async function doDecryptUrl() {
         return;
     }
 
-    const decryptedUrl = `https://exsalapi.my.id/api/video/decrypt-proxy?url=${rawUrl.trim()}&apikey=freepublic`;
+    const decryptedUrl = `https://exsalapi.my.id/api/tools/dramabox/decrypt-video?url=${rawUrl.trim()}&apikey=freepublic`;
     
     console.log(`\n✅ [Decrypted URL Ready]`);
     console.log(`${decryptedUrl}\n`);
