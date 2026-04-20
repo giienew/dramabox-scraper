@@ -86,7 +86,7 @@ function saveToFile(filename, data) {
 }
 
 async function postRequest(endpoint, body) {
-    // 🔥 [HOTFIX]: Injeksi parameter 'st' (Server Time) ke dalam payload
+    // [FIX]: Injeksi parameter 'st' (Server Time) ke dalam payload
     // Ini wajib agar tidak terkena invalid signature oleh sistem baru Dramabox
     body.st = Date.now();
     const signData = await getRemoteSignature(body);
