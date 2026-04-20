@@ -1,7 +1,8 @@
 /*
- * Dramabox Scraper V5 (Ultimate Edition - Full Scrape API)
+ * Dramabox Scraper V5.1 (Ultimate Edition - Full Scrape API)
  * Created by Gienetic 
  * Powered by Custom API, Exsala Proxy & Ultimate Akamai Bypass
+ * [UPDATE]: Bypass Anti-Replay Attack (st parameter injected)
  * GitHub Ready Release
  */
 
@@ -18,6 +19,7 @@ let session = {
     androidid: ""
 };
 
+// Hapus header bawaan Axios agar tidak diblokir WAF
 delete axios.defaults.headers.common['Accept'];
 
 const androidHttpsAgent = new https.Agent({
@@ -84,6 +86,9 @@ function saveToFile(filename, data) {
 }
 
 async function postRequest(endpoint, body) {
+    // 🔥 [HOTFIX]: Injeksi parameter 'st' (Server Time) ke dalam payload
+    // Ini wajib agar tidak terkena invalid signature oleh sistem baru Dramabox
+    body.st = Date.now();
     const signData = await getRemoteSignature(body);
     if (!signData) return { success: false, error: "Signature Failed" };
 
@@ -123,7 +128,6 @@ const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
  * -----------------------------------------------------------
  */
 
-// Payload Result: res.data.searchList[i] -> { bookId, bookName, playCount, tagNames, corner: { name } }
 async function doSearch() {
     console.log(`\n[ Search Drama - Advanced Filter ]`);
     const keyword = await ask("Keyword: ");
@@ -167,7 +171,6 @@ async function doSearch() {
     if (allResults.length > 0) saveToFile(`search_${typeName}_${keyword}.json`, allResults);
 }
 
-// Payload Result: res.data.newTheaterList.records[i] -> { bookId, bookName, chapterCount, playCount, tags }
 async function doLatest() {
     console.log(`\n[ Latest / Telah Tayang ]`);
     let page = 1, keepFetching = true, allResults = [];
@@ -195,7 +198,6 @@ async function doLatest() {
     if (allResults.length > 0) saveToFile("latest_full_release.json", allResults);
 }
 
-// Payload Result: res.data.columnVoList[i].bookList[j] -> { bookId, bookName, chapterCount }
 async function doGetForYou() {
     console.log(`\n[ For You / Recommended ]`);
     const body = { "homePageStyle": 0, "isNeedRank": 1, "isNeedNewChannel": 1, "type": 0 };
@@ -213,7 +215,6 @@ async function doGetForYou() {
     }
 }
 
-// Payload Result: res.data.reserveBookList[i] -> { bookId, bookName, bookShelfTime, tags, introduction }
 async function doGetComingSoon() {
     console.log(`\n[ Coming Soon / Akan Tayang ]`);
     process.stdout.write("-> Fetching coming soon list... ");
@@ -232,7 +233,6 @@ async function doGetComingSoon() {
     }
 }
 
-// Payload Result: res.data.rankList[i] -> { bookId, bookName, chapterCount, rankVo: { sort, hotCode } }
 async function doGetRank() {
     console.log(`\n[ Charts & Ranking ]`);
     console.log(`[1] Trending  [2] Popular Search  [3] Newest`);
@@ -251,7 +251,6 @@ async function doGetRank() {
     }
 }
 
-// Payload Result: res.data.columnVoList[i].bookList[j] -> { bookId, bookName, playCount, chapterCount, tags }
 async function doGetVip() {
     console.log(`\n[ VIP / Weekly Selection ]`);
     process.stdout.write("-> Fetching VIP Exclusives... ");
@@ -270,7 +269,6 @@ async function doGetVip() {
     }
 }
 
-// Payload Result: res.data.classifyBookList.records[i] -> { bookId, bookName, tags, introduction }
 async function doGetClassify() {
     console.log(`\n[ Classify / Jelajah Kategori ]`);
     let page = 1, keepFetching = true, allResults = [];
@@ -298,7 +296,6 @@ async function doGetClassify() {
     if (allResults.length > 0) saveToFile("classify_full.json", allResults);
 }
 
-// Payload Result: res.data.chapterList[i] -> { chapterId, chapterIndex, bookId, cdnList... }
 async function doGetEpisodes() {
     console.log(`\n[ Get Episodes (Pure Raw Data) ]`);
     const bookId = await ask("Book ID: ");
@@ -345,12 +342,6 @@ async function doGetEpisodes() {
     saveToFile(`raw_episodes_${bookId}.json`, allEpisodesRaw);
 }
 
-/* * -----------------------------------------------------------
- * EXSALA PROXY UTILITY MODULE
- * -----------------------------------------------------------
- */
-
-// Payload Result: Decrypted playable video URL output directly to console
 async function doDecryptUrl() {
     console.log(`\n[ Decrypt Video URL via Exsala Proxy ]`);
     const rawUrl = await ask("Masukkan URL Video (Encrypt/Raw): ");
@@ -367,15 +358,10 @@ async function doDecryptUrl() {
     console.log("-> Silakan salin dan putar langsung di browser atau media player (VLC/IDM).");
 }
 
-/* * -----------------------------------------------------------
- * APPLICATION BOOTSTRAP
- * -----------------------------------------------------------
- */
-
 async function main() {
     console.clear();
     console.log("================================================");
-    console.log(" Dramabox Scraper V4 (Ultimate Edition)");
+    console.log(" Dramabox Scraper V5.1 (Ultimate Edition)");
     console.log(" Engine by Gienetic | Exsala API");
     console.log("================================================");
 
