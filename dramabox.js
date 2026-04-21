@@ -1,8 +1,8 @@
 /*
- * Dramabox Scraper V5.1 (Ultimate Edition - Full Scrape API)
+ * Dramabox Scraper V5.2 (Ultimate CLI Edition - Full Scrape API)
  * Created by Gienetic 
  * Powered by Custom API, Exsala Proxy & Ultimate Akamai Bypass
- * [UPDATE]: Bypass Anti-Replay Attack (st parameter injected)
+ * [HOTFIX]: Synchronized Timestamp (st) Injection & Header WAF Fix
  * GitHub Ready Release
  */
 
@@ -53,13 +53,15 @@ async function generateToken() {
     }
 }
 
-async function getRemoteSignature(bodyPayload) {
+// 🔥 FIX: Mengirimkan timestamp lokal ke Vercel agar Signature tersinkronisasi 100%
+async function getRemoteSignature(bodyPayload, ts) {
     try {
         const res = await axios.post(`${API_BASE}/sign`, {
             body: bodyPayload,
             device_id: session.deviceid,
             android_id: session.androidid,
-            token: session.token
+            token: session.token,
+            timestamp: ts // Paksa Vercel menggunakan timestamp yang sama dengan body.st
         });
         return (res.data && res.data.status) ? res.data.data : null;
     } catch (error) {
@@ -86,10 +88,11 @@ function saveToFile(filename, data) {
 }
 
 async function postRequest(endpoint, body) {
-    // [FIX]: Injeksi parameter 'st' (Server Time) ke dalam payload
-    // Ini wajib agar tidak terkena invalid signature oleh sistem baru Dramabox
-    body.st = Date.now();
-    const signData = await getRemoteSignature(body);
+    // 🔥 FIX: Kunci satu timestamp untuk semua operasi (Body, Headers, URL, dan Signature)
+    const ts = Date.now();
+    body.st = ts; 
+
+    const signData = await getRemoteSignature(body, ts);
     if (!signData) return { success: false, error: "Signature Failed" };
 
     const headers = {
@@ -104,19 +107,22 @@ async function postRequest(endpoint, body) {
         "srn": "1080x2160", "p": "60", "is_vpn": "1",
         "build": "Build/QQ3A.200805.001", "pline": "ANDROID", "vn": "5.6.1",
         "over-flow": "new-fly", "tn": `Bearer ${session.token}`,
-        "cid": "DRA1000042", "sn": signData.sn, "active-time": "1297",
+        "cid": "DRA1000042", "sn": signData.sn, 
+        "st": ts, // 🔥 FIX: Menyuntikkan st ke dalam Header
+        "active-time": "1297",
         "content-type": "application/json; charset=UTF-8", "accept-encoding": "gzip",
         "user-agent": "okhttp/4.10.0", "Connection": "Keep-Alive"
     };
 
-    const fullEndpoint = endpoint.includes('?') ? `${endpoint}&timestamp=${signData.timestamp}` : `${endpoint}?timestamp=${signData.timestamp}`;
+    const fullEndpoint = endpoint.includes('?') ? `${endpoint}&timestamp=${ts}` : `${endpoint}?timestamp=${ts}`;
 
     try {
         const response = await axios.post(fullEndpoint, body, { headers, httpsAgent: androidHttpsAgent, timeout: 15000 });
         if (response.data && response.data.data) return { success: true, data: response.data.data };
-        return { success: false, error: "Empty Data" };
+        return { success: false, error: "Empty Data or Blocked", raw: response.data };
     } catch (error) {
-        return { success: false, error: error.message };
+        const rawError = error.response ? error.response.data : error.message;
+        return { success: false, error: "Request Failed", raw: rawError };
     }
 }
 
@@ -308,6 +314,8 @@ async function doGetEpisodes() {
 
     while (keepGoing) {
         process.stdout.write(`\r   Loading batch ${batchCount} (Cursor: ${currentIndex})... `);
+        
+        // Payload aman tanpa parameter 'null'
         const body = {
             "boundaryIndex": 0, "index": parseInt(currentIndex), "currencyPlaySource": "ssym_rank_search",
             "needEndRecommend": 0, "currencyPlaySourceName": "搜索页面热门搜索_热搜榜", "preLoad": false,
@@ -333,13 +341,20 @@ async function doGetEpisodes() {
             if (chapters.length < 5) keepGoing = false;
             await new Promise(r => setTimeout(r, 600)); 
         } else {
+            if (res.raw) {
+                console.log(`\n[Error from Dramabox]:`, res.raw);
+            }
             keepGoing = false;
         }
     }
     
     allEpisodesRaw.sort((a, b) => a.chapterIndex - b.chapterIndex);
-    console.log(`\n✅ Done! Extracted ${allEpisodesRaw.length} pure raw episodes.`);
-    saveToFile(`raw_episodes_${bookId}.json`, allEpisodesRaw);
+    if (allEpisodesRaw.length > 0) {
+        console.log(`\n✅ Done! Extracted ${allEpisodesRaw.length} pure raw episodes.`);
+        saveToFile(`raw_episodes_${bookId}.json`, allEpisodesRaw);
+    } else {
+        console.log(`\n❌ Failed to extract episodes. Please try another ID or generate a new token.`);
+    }
 }
 
 async function doDecryptUrl() {
@@ -361,7 +376,7 @@ async function doDecryptUrl() {
 async function main() {
     console.clear();
     console.log("================================================");
-    console.log(" Dramabox Scraper V5.1 (Ultimate Edition)");
+    console.log(" Dramabox Scraper V5.2 (Ultimate Edition)");
     console.log(" Engine by Gienetic | Exsala API");
     console.log("================================================");
 
