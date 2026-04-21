@@ -1,8 +1,8 @@
 /*
- * Dramabox Scraper V5.2 (Ultimate CLI Edition - Full Scrape API)
+ * Dramabox Scraper V5.3 (Ultimate CLI Edition - Full Scrape API)
  * Created by Gienetic 
  * Powered by Custom API, Exsala Proxy & Ultimate Akamai Bypass
- * [HOTFIX]: Synchronized Timestamp (st) Injection & Header WAF Fix
+ * [HOTFIX]: Auto-Retry Token Rotation on Status 12 & Dynamic Headers
  * GitHub Ready Release
  */
 
@@ -53,7 +53,6 @@ async function generateToken() {
     }
 }
 
-// 🔥 FIX: Mengirimkan timestamp lokal ke Vercel agar Signature tersinkronisasi 100%
 async function getRemoteSignature(bodyPayload, ts) {
     try {
         const res = await axios.post(`${API_BASE}/sign`, {
@@ -61,7 +60,7 @@ async function getRemoteSignature(bodyPayload, ts) {
             device_id: session.deviceid,
             android_id: session.androidid,
             token: session.token,
-            timestamp: ts // Paksa Vercel menggunakan timestamp yang sama dengan body.st
+            timestamp: ts 
         });
         return (res.data && res.data.status) ? res.data.data : null;
     } catch (error) {
@@ -88,7 +87,6 @@ function saveToFile(filename, data) {
 }
 
 async function postRequest(endpoint, body) {
-    // 🔥 FIX: Kunci satu timestamp untuk semua operasi (Body, Headers, URL, dan Signature)
     const ts = Date.now();
     body.st = ts; 
 
@@ -108,8 +106,8 @@ async function postRequest(endpoint, body) {
         "build": "Build/QQ3A.200805.001", "pline": "ANDROID", "vn": "5.6.1",
         "over-flow": "new-fly", "tn": `Bearer ${session.token}`,
         "cid": "DRA1000042", "sn": signData.sn, 
-        "st": ts, // 🔥 FIX: Menyuntikkan st ke dalam Header
-        "active-time": "1297",
+        "st": ts, 
+        "active-time": Math.floor(Math.random() * 8000 + 1000).toString(), // 🔥 FIX: Active-time sekarang dinamis
         "content-type": "application/json; charset=UTF-8", "accept-encoding": "gzip",
         "user-agent": "okhttp/4.10.0", "Connection": "Keep-Alive"
     };
@@ -302,6 +300,7 @@ async function doGetClassify() {
     if (allResults.length > 0) saveToFile("classify_full.json", allResults);
 }
 
+// 🔥 FIX: Skrip pengambilan episode sekarang punya Auto-Retry Token Rotation!
 async function doGetEpisodes() {
     console.log(`\n[ Get Episodes (Pure Raw Data) ]`);
     const bookId = await ask("Book ID: ");
@@ -311,11 +310,11 @@ async function doGetEpisodes() {
     let currentIndex = -1; 
     let keepGoing = true;
     let batchCount = 1;
+    let retryCount = 0; // Memantau jumlah retry per batch
 
     while (keepGoing) {
         process.stdout.write(`\r   Loading batch ${batchCount} (Cursor: ${currentIndex})... `);
         
-        // Payload aman tanpa parameter 'null'
         const body = {
             "boundaryIndex": 0, "index": parseInt(currentIndex), "currencyPlaySource": "ssym_rank_search",
             "needEndRecommend": 0, "currencyPlaySourceName": "搜索页面热门搜索_热搜榜", "preLoad": false,
@@ -337,12 +336,22 @@ async function doGetEpisodes() {
             allEpisodesRaw = allEpisodesRaw.concat(newChapters);
             currentIndex = parseInt(newChapters[newChapters.length - 1].chapterIndex);
             batchCount++;
+            retryCount = 0; // Reset retry counter setiap kali berhasil
 
             if (chapters.length < 5) keepGoing = false;
-            await new Promise(r => setTimeout(r, 600)); 
+            await new Promise(r => setTimeout(r, 1200)); // Delay diperpanjang jadi 1.2 detik agar tidak dicurigai WAF
         } else {
             if (res.raw) {
-                console.log(`\n[Error from Dramabox]:`, res.raw);
+                // 🔥 THE MAGIC: Tangkap Status 12 dan Auto-Renew Token!
+                if (res.raw.status === 12 && retryCount < 3) {
+                    console.log(`\n[!] Limit WAF (Status 12) di Batch ${batchCount}. Mencoba merotasi Session Token...`);
+                    await generateToken(); // Meminta token baru ke Vercel/VPS
+                    retryCount++;
+                    await new Promise(r => setTimeout(r, 2000)); // Istirahat 2 detik sebelum menembak lagi
+                    continue; // Ulangi eksekusi batch yang gagal tadi
+                } else {
+                    console.log(`\n[Error from Dramabox]:`, res.raw);
+                }
             }
             keepGoing = false;
         }
@@ -376,7 +385,7 @@ async function doDecryptUrl() {
 async function main() {
     console.clear();
     console.log("================================================");
-    console.log(" Dramabox Scraper V5.2 (Ultimate Edition)");
+    console.log(" Dramabox Scraper V5.3 (Ultimate Edition)");
     console.log(" Engine by Gienetic | Exsala API");
     console.log("================================================");
 
