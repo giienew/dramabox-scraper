@@ -418,7 +418,7 @@ async function main() {
 
     const isConnected = await generateToken();
     if (!isConnected) {
-        log.err("FATAL: Failed to obtain Vercel Session. Check network or Called Gienetic.");
+        log.err("FATAL: Failed to obtain Session. Check network or Called Gienetic for Updates.");
         process.exit(1);
     }
 
