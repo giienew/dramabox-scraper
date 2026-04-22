@@ -1,73 +1,67 @@
-/*
- * Dramabox Scraper V5.3 (Ultimate CLI Edition - Full Scrape API)
- * Created by Gienetic 
- * Powered by Custom API, Exsala Proxy & Ultimate Akamai Bypass
- * [HOTFIX]: Auto-Retry Token Rotation on Status 12 & Dynamic Headers
- * GitHub Ready Release
+/**
+ * Dramabox Scraper CLI Engine
+ * Ultimate Developer Edition for extracting metadata, rankings, and raw episodes.
+ * Author: Gienetic
  */
-
+ 
 import axios from "axios";
 import readline from "readline";
 import fs from "fs";
 import https from "https";
 
+// initialize config and state
 const API_BASE = "https://nb-dramabox-gentoken.vercel.app";
+let session = { token: "", deviceid: "", androidid: "" };
 
-let session = {
-    token: "",
-    deviceid: "",
-    androidid: ""
-};
-
-// Hapus header bawaan Axios agar tidak diblokir WAF
+// configure axios
 delete axios.defaults.headers.common['Accept'];
 
+// setup custom tls agent
 const androidHttpsAgent = new https.Agent({
     ciphers: [
-        "TLS_AES_128_GCM_SHA256",
-        "TLS_AES_256_GCM_SHA384",
-        "TLS_CHACHA20_POLY1305_SHA256",
-        "ECDHE-ECDSA-AES128-GCM-SHA256",
-        "ECDHE-RSA-AES128-GCM-SHA256"
+        "TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256",
+        "ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-RSA-AES128-GCM-SHA256"
     ].join(':'),
     honorCipherOrder: true,
     minVersion: 'TLSv1.2'
 });
 
-async function generateToken() {
-    try {
-        process.stdout.write("--> Initializing Server Connection... ");
-        const res = await axios.get(`${API_BASE}/generate-token`);
-        if (res.data && res.data.status && res.data.data) {
-            const data = res.data.data;
-            session.token = data.sn;
-            session.deviceid = data.device_id;
-            session.androidid = data.android_id;
-            console.log("OK. Session Saved.");
-            return true;
-        }
-        return false;
-    } catch (error) {
-        console.log(`Failed: ${error.message}`);
-        return false;
-    }
+// setup cli ui and colors
+const c = {
+    rst: "\x1b[0m", dim: "\x1b[2m", bld: "\x1b[1m",
+    red: "\x1b[31m", grn: "\x1b[32m", ylw: "\x1b[33m",
+    blu: "\x1b[34m", mag: "\x1b[35m", cyn: "\x1b[36m", wht: "\x1b[37m"
+};
+
+const log = {
+    info: (msg) => console.log(`${c.cyn}[*]${c.rst} ${msg}`),
+    ok: (msg) => console.log(`${c.grn}[+]${c.rst} ${msg}`),
+    err: (msg) => console.log(`${c.red}[-]${c.rst} ${msg}`),
+    warn: (msg) => console.log(`${c.ylw}[!]${c.rst} ${msg}`),
+    step: (msg) => process.stdout.write(`${c.blu}[~]${c.rst} ${msg}`),
+    header: (title) => console.log(`\n${c.mag}${c.bld}--- [ ${title} ] ---${c.rst}\n`)
+};
+
+// render ascii banner
+function printBanner() {
+    console.clear();
+    console.log(`${c.cyn}${c.bld}`);
+    console.log(`██████╗ ██████╗ █████╗ ███╗   ███╗█████╗ `);
+    console.log(`██╔══██╗██╔══██╗██╔══██╗████╗ ████║██╔══██╗`);
+    console.log(`██║  ██║██████╔╝███████║██╔████╔██║███████║`);
+    console.log(`██║  ██║██╔══██╗██╔══██║██║╚██╔╝██║██╔══██║`);
+    console.log(`██████╔╝██║  ██║██║  ██║██║ ╚═╝ ██║██║  ██║`);
+    console.log(`╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝`);
+    console.log(`██████╗  ██████╗ ██╗  ██╗`);
+    console.log(`██╔══██╗██╔═══██╗╚██╗██╔╝`);
+    console.log(`██████╔╝██║   ██║ ╚███╔╝ `);
+    console.log(`██╔══██╗██║   ██║ ██╔██╗ `);
+    console.log(`██████╔╝╚██████╔╝██╔╝ ██╗`);
+    console.log(`╚═════╝  ╚═════╝ ╚═╝  ╚═╝${c.rst}`);
+    console.log(`\n${c.dim}:: Core Engine V5 | Coded by Gienetic::${c.rst}\n`);
 }
 
-async function getRemoteSignature(bodyPayload, ts) {
-    try {
-        const res = await axios.post(`${API_BASE}/sign`, {
-            body: bodyPayload,
-            device_id: session.deviceid,
-            android_id: session.androidid,
-            token: session.token,
-            timestamp: ts 
-        });
-        return (res.data && res.data.status) ? res.data.data : null;
-    } catch (error) {
-        return null;
-    }
-}
-
+// core helpers
 function getLocalTime() {
     const now = new Date();
     const offset = 7 * 60 * 60 * 1000;
@@ -80,18 +74,53 @@ function saveToFile(filename, data) {
     try {
         const safeFilename = filename.replace(/[^a-z0-9_.-]/gi, '_').toLowerCase();
         fs.writeFileSync(safeFilename, JSON.stringify(data, null, 4));
-        console.log(`\n[Saved] -> ${safeFilename}`);
+        log.ok(`Dump saved: ${c.bld}${safeFilename}${c.rst}`);
     } catch (e) {
-        console.log(`[Error] Failed saving to ${filename}`);
+        log.err(`Failed to write file ${filename}`);
     }
 }
 
-async function postRequest(endpoint, body) {
-    const ts = Date.now();
-    body.st = ts; 
+// init session token
+async function generateToken() {
+    try {
+        log.step("Initializing Session Handshake... ");
+        const res = await axios.get(`${API_BASE}/generate-token`);
+        if (res.data && res.data.status && res.data.data) {
+            session = {
+                token: res.data.data.sn,
+                deviceid: res.data.data.device_id,
+                androidid: res.data.data.android_id
+            };
+            console.log(`${c.grn}SUCCESS${c.rst}`);
+            return true;
+        }
+        console.log(`${c.red}FAILED${c.rst}`);
+        return false;
+    } catch (error) {
+        console.log(`${c.red}ERR: ${error.message}${c.rst}`);
+        return false;
+    }
+}
 
-    const signData = await getRemoteSignature(body, ts);
-    if (!signData) return { success: false, error: "Signature Failed" };
+// fetch remote signature
+async function getRemoteSignature(bodyPayload) {
+    try {
+        const res = await axios.post(`${API_BASE}/sign`, {
+            body: bodyPayload, 
+            device_id: session.deviceid,
+            android_id: session.androidid, 
+            token: session.token
+        });
+        return (res.data && res.data.status) ? res.data.data : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+// handle post request
+async function postRequest(endpoint, body) {
+    const signData = await getRemoteSignature(body);
+    if (!signData) return { success: false, error: "Signature generation failed" };
 
     const headers = {
         "mchid": "DRA1000042", "tz": "-420", "language": "in", "mcc": "510",
@@ -105,41 +134,37 @@ async function postRequest(endpoint, body) {
         "srn": "1080x2160", "p": "60", "is_vpn": "1",
         "build": "Build/QQ3A.200805.001", "pline": "ANDROID", "vn": "5.6.1",
         "over-flow": "new-fly", "tn": `Bearer ${session.token}`,
-        "cid": "DRA1000042", "sn": signData.sn, 
-        "st": ts, 
-        "active-time": Math.floor(Math.random() * 8000 + 1000).toString(), // 🔥 FIX: Active-time sekarang dinamis
+        "cid": "DRA1000042", "sn": signData.sn, "active-time": "1297",
         "content-type": "application/json; charset=UTF-8", "accept-encoding": "gzip",
         "user-agent": "okhttp/4.10.0", "Connection": "Keep-Alive"
     };
 
-    const fullEndpoint = endpoint.includes('?') ? `${endpoint}&timestamp=${ts}` : `${endpoint}?timestamp=${ts}`;
+    const fullEndpoint = endpoint.includes('?') ? `${endpoint}&timestamp=${signData.timestamp}` : `${endpoint}?timestamp=${signData.timestamp}`;
 
     try {
         const response = await axios.post(fullEndpoint, body, { headers, httpsAgent: androidHttpsAgent, timeout: 15000 });
         if (response.data && response.data.data) return { success: true, data: response.data.data };
-        return { success: false, error: "Empty Data or Blocked", raw: response.data };
+        return { success: false, error: "Empty Data" };
     } catch (error) {
-        const rawError = error.response ? error.response.data : error.message;
-        return { success: false, error: "Request Failed", raw: rawError };
+        return { success: false, error: error.message };
     }
 }
 
+// cli input helper
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const ask = (q) => new Promise((resolve) => rl.question(q, resolve));
+const ask = (q) => new Promise((resolve) => rl.question(`${c.ylw}?${c.rst} ${q}`, resolve));
 
-/* * -----------------------------------------------------------
- * CORE SCRAPING MODULES
- * -----------------------------------------------------------
- */
+// scraping modules
 
+// Payload Result: res.data.searchList[i] -> { bookId, bookName, playCount, tagNames, corner: { name } }
 async function doSearch() {
-    console.log(`\n[ Search Drama - Advanced Filter ]`);
-    const keyword = await ask("Keyword: ");
-    console.log(`\nSort by: [1] Trending  [2] Latest  [3] Unwatched`);
-    const sortChoice = await ask("Select (1/2/3): ");
+    log.header("SEARCH ENGINE");
+    const keyword = await ask("Enter Keyword (Title/Genre): ");
     
-    let sortType = 1;
-    let typeName = "Trending";
+    console.log(`\n${c.dim}Filters:${c.rst} [1] Trending  [2] Latest  [3] Unwatched`);
+    const sortChoice = await ask("Select Sort Type (1-3): ");
+    
+    let sortType = 1, typeName = "Trending";
     if (sortChoice.trim() === '2') { sortType = 2; typeName = "Latest"; }
     if (sortChoice.trim() === '3') { sortType = 3; typeName = "Unwatched"; }
 
@@ -147,9 +172,10 @@ async function doSearch() {
     const fromParam = (sortType === 2 || sortType === 3) ? "search_sug" : "search_result";
 
     let page = 1, keepFetching = true, allResults = [];
+    console.log("");
 
     while (keepFetching) {
-        process.stdout.write(`\r-> Fetching Page ${page}... `);
+        process.stdout.write(`\r${c.blu}[~]${c.rst} Fetching page ${page}... `);
         const body = {
             "searchSource": searchSource, "sortType": sortType, "synSwitch": 1,
             "pageNo": page, "pageSize": 20, "from": fromParam, "keyword": keyword
@@ -159,7 +185,7 @@ async function doSearch() {
 
         if (res.success && res.data && res.data.searchList && res.data.searchList.length > 0) {
             allResults = allResults.concat(res.data.searchList);
-            console.log(`OK! (${res.data.searchList.length} items)`);
+            console.log(`${c.grn}OK!${c.rst} (${res.data.searchList.length} items)`);
             
             if (res.data.isMore === 0 || res.data.searchList.length < 20) {
                 keepFetching = false;
@@ -168,25 +194,29 @@ async function doSearch() {
                 await new Promise(r => setTimeout(r, 800)); 
             }
         } else {
-            console.log("End of results.");
+            console.log(`${c.dim}End of results.${c.rst}`);
             keepFetching = false;
         }
     }
-    if (allResults.length > 0) saveToFile(`search_${typeName}_${keyword}.json`, allResults);
+    if (allResults.length > 0) {
+        log.info(`Total extracted: ${c.bld}${allResults.length} items${c.rst}`);
+        saveToFile(`search_${typeName}_${keyword}.json`, allResults);
+    }
 }
 
+// Payload Result: res.data.newTheaterList.records[i] -> { bookId, bookName, chapterCount, playCount, tags }
 async function doLatest() {
-    console.log(`\n[ Latest / Telah Tayang ]`);
+    log.header("LATEST RELEASES");
     let page = 1, keepFetching = true, allResults = [];
 
     while (keepFetching) {
-        process.stdout.write(`\r-> Fetching Page ${page}... `);
+        process.stdout.write(`\r${c.blu}[~]${c.rst} Fetching page ${page}... `);
         const body = { "newChannelStyle": 1, "isNeedRank": 1, "pageNo": page, "index": 1, "channelId": 43 };
         const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/theater", body);
 
         if (res.success && res.data.newTheaterList && res.data.newTheaterList.records.length > 0) {
             allResults = allResults.concat(res.data.newTheaterList.records);
-            console.log(`OK! (${res.data.newTheaterList.records.length} items)`);
+            console.log(`${c.grn}OK!${c.rst} (${res.data.newTheaterList.records.length} items)`);
             
             const totalPages = res.data.newTheaterList.pages || 1;
             if (page >= totalPages) keepFetching = false;
@@ -195,96 +225,109 @@ async function doLatest() {
                 await new Promise(r => setTimeout(r, 800));
             }
         } else {
-            console.log("Failed or End of data.");
+            console.log(`${c.dim}End of data.${c.rst}`);
             keepFetching = false;
         }
     }
-    if (allResults.length > 0) saveToFile("latest_full_release.json", allResults);
+    if (allResults.length > 0) {
+        log.info(`Total extracted: ${c.bld}${allResults.length} items${c.rst}`);
+        saveToFile("latest_full_release.json", allResults);
+    }
 }
 
+// Payload Result: res.data.columnVoList[i].bookList[j] -> { bookId, bookName, chapterCount }
 async function doGetForYou() {
-    console.log(`\n[ For You / Recommended ]`);
+    log.header("FOR YOU (FYP)");
+    log.step("Fetching algorithmic recommendations... ");
     const body = { "homePageStyle": 0, "isNeedRank": 1, "isNeedNewChannel": 1, "type": 0 };
     const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/theater", body);
 
     if (res.success && res.data.columnVoList) {
+        console.log(`${c.grn}SUCCESS${c.rst}`);
         let allBooks = [];
         res.data.columnVoList.forEach(col => {
             if (col.bookList && col.bookList.length > 0) allBooks = allBooks.concat(col.bookList);
         });
-        console.log(`Successfully scraped ${allBooks.length} recommended items.`);
+        log.info(`Total extracted: ${c.bld}${allBooks.length} items${c.rst}`);
         saveToFile("foryou_recommended.json", allBooks);
     } else {
-        console.log("Empty result.");
+        console.log(`${c.red}FAILED/EMPTY${c.rst}`);
     }
 }
 
+// Payload Result: res.data.reserveBookList[i] -> { bookId, bookName, bookShelfTime, tags, introduction }
 async function doGetComingSoon() {
-    console.log(`\n[ Coming Soon / Akan Tayang ]`);
-    process.stdout.write("-> Fetching coming soon list... ");
+    log.header("COMING SOON");
+    log.step("Fetching upcoming catalog... ");
     const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/reserveBook", {});
 
     if (res.success && res.data.reserveBookList && res.data.reserveBookList.length > 0) {
         const books = res.data.reserveBookList;
-        console.log(`OK! (${books.length} items)`);
+        console.log(`${c.grn}SUCCESS${c.rst}`);
         
         books.forEach(book => {
             book.releaseDateLocal = book.bookShelfTime ? new Date(book.bookShelfTime).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : "TBA";
         });
+        log.info(`Total extracted: ${c.bld}${books.length} items${c.rst}`);
         saveToFile("coming_soon.json", books);
     } else {
-        console.log("Failed or Empty.");
+        console.log(`${c.red}FAILED/EMPTY${c.rst}`);
     }
 }
 
+// Payload Result: res.data.rankList[i] -> { bookId, bookName, chapterCount, rankVo: { sort, hotCode } }
 async function doGetRank() {
-    console.log(`\n[ Charts & Ranking ]`);
-    console.log(`[1] Trending  [2] Popular Search  [3] Newest`);
+    log.header("LEADERBOARDS");
+    console.log(`${c.dim}Categories:${c.rst} [1] Trending  [2] Popular Search  [3] Newest`);
     const choice = await ask("Select Category (1-3): ");
     const rankType = ['1', '2', '3'].includes(choice.trim()) ? parseInt(choice.trim()) : 1;
 
-    process.stdout.write(`-> Fetching Leaderboard Category ${rankType}... `);
+    log.step(`Fetching Rank Type [${rankType}]... `);
     const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/rank", { "rankType": rankType });
 
     if (res.success && res.data.rankList && res.data.rankList.length > 0) {
+        console.log(`${c.grn}SUCCESS${c.rst}`);
         const categoryName = res.data.rankTypeVoList?.find(r => r.rankType === rankType)?.rankName || `Rank_${rankType}`;
-        console.log(`OK! (${res.data.rankList.length} items)`);
+        log.info(`Total extracted: ${c.bld}${res.data.rankList.length} items${c.rst}`);
         saveToFile(`rank_${categoryName}.json`, res.data.rankList);
     } else {
-        console.log("Empty Rank Result.");
+        console.log(`${c.red}FAILED/EMPTY${c.rst}`);
     }
 }
 
+// Payload Result: res.data.columnVoList[i].bookList[j] -> { bookId, bookName, playCount, chapterCount, tags }
 async function doGetVip() {
-    console.log(`\n[ VIP / Weekly Selection ]`);
-    process.stdout.write("-> Fetching VIP Exclusives... ");
+    log.header("VIP EXCLUSIVES");
+    log.step("Fetching VIP & Weekly Selection... ");
     const body = { "homePageStyle": 0, "isNeedRank": 1, "index": 4, "type": 0, "channelId": 205 };
     const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/theater", body);
 
     if (res.success && res.data.columnVoList && res.data.columnVoList.length > 0) {
+        console.log(`${c.grn}SUCCESS${c.rst}`);
         let allBooks = [];
         res.data.columnVoList.forEach(col => {
             if (col.bookList && col.bookList.length > 0) allBooks = allBooks.concat(col.bookList);
         });
-        console.log(`OK! (${allBooks.length} items across categories)`);
+        log.info(`Total extracted: ${c.bld}${allBooks.length} items across categories${c.rst}`);
         saveToFile("vip_exclusive.json", allBooks);
     } else {
-        console.log("Empty VIP result.");
+        console.log(`${c.red}FAILED/EMPTY${c.rst}`);
     }
 }
 
+// Payload Result: res.data.classifyBookList.records[i] -> { bookId, bookName, tags, introduction }
 async function doGetClassify() {
-    console.log(`\n[ Classify / Jelajah Kategori ]`);
+    log.header("CLASSIFY EXPLORER");
     let page = 1, keepFetching = true, allResults = [];
 
     while (keepFetching) {
-        process.stdout.write(`\r-> Fetching Page ${page}... `);
+        process.stdout.write(`\r${c.blu}[~]${c.rst} Fetching page ${page}... `);
         const body = { "typeList": [], "showLabels": true, "pageNo": page, "pageSize": 15 };
         const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/classify", body);
 
         if (res.success && res.data.classifyBookList && res.data.classifyBookList.records.length > 0) {
             allResults = allResults.concat(res.data.classifyBookList.records);
-            console.log(`OK! (${res.data.classifyBookList.records.length} items)`);
+            console.log(`${c.grn}OK!${c.rst} (${res.data.classifyBookList.records.length} items)`);
             
             if (res.data.classifyBookList.isMore === 0 || res.data.classifyBookList.records.length < 15) {
                 keepFetching = false;
@@ -293,28 +336,30 @@ async function doGetClassify() {
                 await new Promise(r => setTimeout(r, 800));
             }
         } else {
-            console.log("End of list.");
+            console.log(`${c.dim}End of list.${c.rst}`);
             keepFetching = false;
         }
     }
-    if (allResults.length > 0) saveToFile("classify_full.json", allResults);
+    if (allResults.length > 0) {
+        log.info(`Total extracted: ${c.bld}${allResults.length} items${c.rst}`);
+        saveToFile("classify_full.json", allResults);
+    }
 }
 
-// 🔥 FIX: Skrip pengambilan episode sekarang punya Auto-Retry Token Rotation!
+// Payload Result: res.data.chapterList[i] -> { chapterId, chapterIndex, bookId, cdnList... }
 async function doGetEpisodes() {
-    console.log(`\n[ Get Episodes (Pure Raw Data) ]`);
-    const bookId = await ask("Book ID: ");
-    console.log(`-> Extracting raw metadata for ID: ${bookId}...`);
+    log.header("RAW EPISODE FETCHER");
+    const bookId = await ask("Target Book ID (e.g. 42000009439): ");
+    log.info(`Target locked. Initiating metadata extraction...`);
+    console.log(""); 
 
     let allEpisodesRaw = [];
     let currentIndex = -1; 
     let keepGoing = true;
     let batchCount = 1;
-    let retryCount = 0; // Memantau jumlah retry per batch
 
     while (keepGoing) {
-        process.stdout.write(`\r   Loading batch ${batchCount} (Cursor: ${currentIndex})... `);
-        
+        process.stdout.write(`\r${c.blu}[~]${c.rst} Streaming batch ${c.bld}#${batchCount}${c.rst} (Cursor: ${currentIndex})... `);
         const body = {
             "boundaryIndex": 0, "index": parseInt(currentIndex), "currencyPlaySource": "ssym_rank_search",
             "needEndRecommend": 0, "currencyPlaySourceName": "搜索页面热门搜索_热搜榜", "preLoad": false,
@@ -329,98 +374,86 @@ async function doGetEpisodes() {
             const newChapters = chapters.filter(newEps => !allEpisodesRaw.some(existEps => existEps.chapterId === newEps.chapterId));
 
             if (newChapters.length === 0) {
-                console.log("\n-> Cycle detected. Stopping extraction.");
+                console.log(`\n${c.ylw}[!] Anti-Loop mechanism triggered. Stopping.${c.rst}`);
                 break;
             }
 
             allEpisodesRaw = allEpisodesRaw.concat(newChapters);
             currentIndex = parseInt(newChapters[newChapters.length - 1].chapterIndex);
             batchCount++;
-            retryCount = 0; // Reset retry counter setiap kali berhasil
 
             if (chapters.length < 5) keepGoing = false;
-            await new Promise(r => setTimeout(r, 1200)); // Delay diperpanjang jadi 1.2 detik agar tidak dicurigai WAF
+            await new Promise(r => setTimeout(r, 600)); 
         } else {
-            if (res.raw) {
-                // 🔥 THE MAGIC: Tangkap Status 12 dan Auto-Renew Token!
-                if (res.raw.status === 12 && retryCount < 3) {
-                    console.log(`\n[!] Limit WAF (Status 12) di Batch ${batchCount}. Mencoba merotasi Session Token...`);
-                    await generateToken(); // Meminta token baru ke Vercel/VPS
-                    retryCount++;
-                    await new Promise(r => setTimeout(r, 2000)); // Istirahat 2 detik sebelum menembak lagi
-                    continue; // Ulangi eksekusi batch yang gagal tadi
-                } else {
-                    console.log(`\n[Error from Dramabox]:`, res.raw);
-                }
-            }
             keepGoing = false;
         }
     }
     
     allEpisodesRaw.sort((a, b) => a.chapterIndex - b.chapterIndex);
-    if (allEpisodesRaw.length > 0) {
-        console.log(`\n✅ Done! Extracted ${allEpisodesRaw.length} pure raw episodes.`);
-        saveToFile(`raw_episodes_${bookId}.json`, allEpisodesRaw);
-    } else {
-        console.log(`\n❌ Failed to extract episodes. Please try another ID or generate a new token.`);
-    }
+    console.log(`\n\n${c.grn}Extraction Complete!${c.rst}`);
+    log.info(`Successfully parsed ${c.bld}${allEpisodesRaw.length}${c.rst} raw episodes.`);
+    saveToFile(`raw_episodes_${bookId}.json`, allEpisodesRaw);
 }
 
+// Payload Result: Decrypted playable video URL output directly to console
 async function doDecryptUrl() {
-    console.log(`\n[ Decrypt Video URL via Exsala Proxy ]`);
-    const rawUrl = await ask("Masukkan URL Video (Encrypt/Raw): ");
+    log.header("EXSALA PROXY DECRYPTOR");
+    const rawUrl = await ask("Input Target URL (.encrypt.mp4): ");
     
     if (!rawUrl || rawUrl.trim() === "") {
-        console.log("❌ URL tidak boleh kosong.");
+        log.err("URL cannot be empty.");
         return;
     }
 
-    const decryptedUrl = `https://exsalapi.my.id/api/tools/dramabox/decrypt-video?url=${rawUrl.trim()}&apikey=freepublic`;
+    const decryptedUrl = `https://exsalapi.my.id/api/video/decrypt-proxy?url=${encodeURIComponent(rawUrl.trim())}&apikey=freepublic`;
     
-    console.log(`\n✅ [Decrypted URL Ready]`);
-    console.log(`${decryptedUrl}\n`);
-    console.log("-> Silakan salin dan putar langsung di browser atau media player (VLC/IDM).");
+    log.ok("Decryption Route Generated:");
+    console.log(`\n${c.cyn}${c.bld}${decryptedUrl}${c.rst}\n`);
+    log.info("Copy this URL to VLC/IDM/Browser to play.");
 }
 
+// application bootstrap
 async function main() {
-    console.clear();
-    console.log("================================================");
-    console.log(" Dramabox Scraper V5.3 (Ultimate Edition)");
-    console.log(" Engine by Gienetic | Exsala API");
-    console.log("================================================");
+    printBanner();
 
-    if (await generateToken()) {
-        while (true) {
-            console.log(`\n--- MAIN MENU ---`);
-            console.log(`[1] Search Drama (Full Pagination)`);
-            console.log(`[2] Latest / Newest (Full Pagination)`);
-            console.log(`[3] For You / Recommended`);
-            console.log(`[4] Coming Soon`);
-            console.log(`[5] Top Ranking / Charts`);
-            console.log(`[6] VIP / Weekly Selection`);
-            console.log(`[7] Classify / Jelajah Kategori (Full Pagination)`);
-            console.log(`[8] Get Episodes (Pure Raw Data)`);
-            console.log(`[9] Decrypt Video URL (Exsala Proxy)`);
-            console.log(`[0] Exit`);
+    const isConnected = await generateToken();
+    if (!isConnected) {
+        log.err("FATAL: Failed to obtain Vercel Session. Check network or API limit.");
+        process.exit(1);
+    }
 
-            const c = await ask("\nSelect Menu: ");
-            switch (c.trim()) {
-                case "1": await doSearch(); break;
-                case "2": await doLatest(); break;
-                case "3": await doGetForYou(); break;
-                case "4": await doGetComingSoon(); break;
-                case "5": await doGetRank(); break;
-                case "6": await doGetVip(); break;
-                case "7": await doGetClassify(); break;
-                case "8": await doGetEpisodes(); break;
-                case "9": await doDecryptUrl(); break;
-                case "0": console.log("Exiting... Goodbye!"); process.exit(0);
-                default: console.log("Invalid selection. Try again.");
-            }
+    while (true) {
+        console.log(`\n${c.wht}${c.bld}--- [ MAIN DASHBOARD ] ---${c.rst}`);
+        console.log(`  ${c.cyn}[ 01 ]${c.rst} Search Drama (Deep Scan)`);
+        console.log(`  ${c.cyn}[ 02 ]${c.rst} Fetch Latest Releases`);
+        console.log(`  ${c.cyn}[ 03 ]${c.rst} Fetch For You (FYP)`);
+        console.log(`  ${c.cyn}[ 04 ]${c.rst} Fetch Coming Soon`);
+        console.log(`  ${c.cyn}[ 05 ]${c.rst} Fetch Leaderboards`);
+        console.log(`  ${c.cyn}[ 06 ]${c.rst} Fetch VIP Exclusives`);
+        console.log(`  ${c.cyn}[ 07 ]${c.rst} Classify Category Explorer`);
+        console.log(`  ${c.mag}[ 08 ]${c.rst} ${c.bld}Extract Raw Episodes${c.rst}`);
+        console.log(`  ${c.ylw}[ 09 ]${c.rst} Bypass & Decrypt URL`);
+        console.log(`  ${c.red}[ 00 ]${c.rst} Exit Termux\n`);
+
+        const c_input = await ask("Execute module: ");
+        switch (c_input.trim()) {
+            case "1": case "01": await doSearch(); break;
+            case "2": case "02": await doLatest(); break;
+            case "3": case "03": await doGetForYou(); break;
+            case "4": case "04": await doGetComingSoon(); break;
+            case "5": case "05": await doGetRank(); break;
+            case "6": case "06": await doGetVip(); break;
+            case "7": case "07": await doGetClassify(); break;
+            case "8": case "08": await doGetEpisodes(); break;
+            case "9": case "09": await doDecryptUrl(); break;
+            case "0": case "00": 
+                log.info("Shutting down core engine... Goodbye!"); 
+                process.exit(0);
+            default: 
+                log.warn("Invalid module sequence. Select 00 - 09.");
         }
-    } else {
-        console.log("Critical Error: Failed to initialize API Session.");
     }
 }
 
+// ignition
 main();
