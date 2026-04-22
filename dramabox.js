@@ -418,7 +418,7 @@ async function main() {
 
     const isConnected = await generateToken();
     if (!isConnected) {
-        log.err("FATAL: Failed to obtain Vercel Session. Check network or API limit.");
+        log.err("FATAL: Failed to obtain Vercel Session. Check network or Called Gienetic.");
         process.exit(1);
     }
 
