@@ -1,32 +1,31 @@
 /**
  * Dramabox Scraper CLI Engine
- * Ultimate Developer Edition for extracting metadata, rankings, and raw episodes.
+ * Ultimate Developer Edition
+ * Cloud Crypto Signature (Vercel) + Akamai WAF Bypass (HTTP/1.1 TLS Socket)
  * Author: Gienetic
  */
  
-import axios from "axios";
 import readline from "readline";
 import fs from "fs";
-import https from "https";
+import tls from "tls"; 
+import crypto from "crypto";
+import zlib from "zlib";
+import axios from "axios";
 
-// initialize config and state
+// --- KONFIGURASI API & SESI ---
 const API_BASE = "https://nb-dramabox-gentoken.vercel.app";
-let session = { token: "", deviceid: "", androidid: "" };
 
-// configure axios
-delete axios.defaults.headers.common['Accept'];
+let session = {
+    token: "",
+    deviceid: "",
+    androidid: "",
+    instanceid: crypto.randomBytes(16).toString('hex'),
+    afid: Date.now() + "-" + Math.floor(Math.random() * 9999999999999999),
+    ins: Date.now().toString(),
+    st: "cK4n10B_0tTQBrxFyyBWnOKD" 
+};
 
-// setup custom tls agent
-const androidHttpsAgent = new https.Agent({
-    ciphers: [
-        "TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256",
-        "ECDHE-ECDSA-AES128-GCM-SHA256", "ECDHE-RSA-AES128-GCM-SHA256"
-    ].join(':'),
-    honorCipherOrder: true,
-    minVersion: 'TLSv1.2'
-});
-
-// setup cli ui and colors
+// --- CLI UI & COLORS ---
 const c = {
     rst: "\x1b[0m", dim: "\x1b[2m", bld: "\x1b[1m",
     red: "\x1b[31m", grn: "\x1b[32m", ylw: "\x1b[33m",
@@ -42,7 +41,6 @@ const log = {
     header: (title) => console.log(`\n${c.mag}${c.bld}--- [ ${title} ] ---${c.rst}\n`)
 };
 
-// render ascii banner
 function printBanner() {
     console.clear();
     console.log(`${c.cyn}${c.bld}`);
@@ -58,10 +56,10 @@ function printBanner() {
     console.log(`██╔══██╗██║   ██║ ██╔██╗ `);
     console.log(`██████╔╝╚██████╔╝██╔╝ ██╗`);
     console.log(`╚═════╝  ╚═════╝ ╚═╝  ╚═╝${c.rst}`);
-    console.log(`\n${c.dim}:: Core Engine V5 | Coded by Gienetic::${c.rst}\n`);
+    console.log(`\n${c.dim}:: Core Engine V5.8.2 | Vercel Signature + TLS Bypass | Coded by Gienetic::${c.rst}\n`);
 }
 
-// core helpers
+// --- CORE HELPERS ---
 function getLocalTime() {
     const now = new Date();
     const offset = 7 * 60 * 60 * 1000;
@@ -80,20 +78,20 @@ function saveToFile(filename, data) {
     }
 }
 
-// init session token
+// --- VERCEL CLOUD CRYPTO ---
 async function generateToken() {
     try {
-        log.step("Initializing Session Handshake... ");
-        const res = await axios.get(`${API_BASE}/generate-token`);
+        log.step("Initializing Session via Vercel... ");
+        const res = await axios.get(`${API_BASE}/generate-token`, { timeout: 20000 });
+        
         if (res.data && res.data.status && res.data.data) {
-            session = {
-                token: res.data.data.sn,
-                deviceid: res.data.data.device_id,
-                androidid: res.data.data.android_id
-            };
+            session.token = res.data.data.sn;
+            session.deviceid = res.data.data.device_id;
+            session.androidid = res.data.data.android_id;
             console.log(`${c.grn}SUCCESS${c.rst}`);
             return true;
         }
+        
         console.log(`${c.red}FAILED${c.rst}`);
         return false;
     } catch (error) {
@@ -102,7 +100,6 @@ async function generateToken() {
     }
 }
 
-// fetch remote signature
 async function getRemoteSignature(bodyPayload) {
     try {
         const res = await axios.post(`${API_BASE}/sign`, {
@@ -110,53 +107,194 @@ async function getRemoteSignature(bodyPayload) {
             device_id: session.deviceid,
             android_id: session.androidid, 
             token: session.token
-        });
+        }, { timeout: 15000 });
+        
         return (res.data && res.data.status) ? res.data.data : null;
     } catch (error) {
         return null;
     }
 }
 
-// handle post request
-async function postRequest(endpoint, body) {
-    const signData = await getRemoteSignature(body);
-    if (!signData) return { success: false, error: "Signature generation failed" };
 
-    const headers = {
-        "mchid": "DRA1000042", "tz": "-420", "language": "in", "mcc": "510",
-        "locale": "in_ID", "is_root": "1", "device-id": session.deviceid,
-        "nchid": "DRA1000042", "md": "Redmi Note 5", "store-source": "store_google",
-        "mf": "XIAOMI", "local-time": getLocalTime(), "time-zone": "+0700",
-        "brand": "Xiaomi", "apn": "1", "lat": "0", "is_emulator": "0",
-        "current-language": "in", "ov": "10", "version": "561",
-        "afid": Date.now() + "-" + Math.floor(Math.random() * 9999999999999999),
-        "package-name": "com.storymatrix.drama", "android-id": session.androidid,
-        "srn": "1080x2160", "p": "60", "is_vpn": "1",
-        "build": "Build/QQ3A.200805.001", "pline": "ANDROID", "vn": "5.6.1",
-        "over-flow": "new-fly", "tn": `Bearer ${session.token}`,
-        "cid": "DRA1000042", "sn": signData.sn, "active-time": "1297",
-        "content-type": "application/json; charset=UTF-8", "accept-encoding": "gzip",
-        "user-agent": "okhttp/4.10.0", "Connection": "Keep-Alive"
+// --- RAW TLS SOCKET BYPASS (UNTUK PENGAMBILAN DATA) ---
+function wRequest(urlStr, bodyObj, headersInput) {
+    return new Promise((resolve, reject) => {
+        const urlObj = new URL(urlStr);
+        const bodyStr = JSON.stringify(bodyObj);
+        const contentLength = Buffer.byteLength(bodyStr);
+
+        let requestRaw = `POST ${urlObj.pathname}${urlObj.search} HTTP/1.1\r\n`;
+        requestRaw += `Host: ${urlObj.hostname}\r\n`;
+        
+        for (const [key, value] of Object.entries(headersInput)) {
+            if (key.toLowerCase() !== 'host' && key.toLowerCase() !== 'content-length') {
+                 requestRaw += `${key}: ${value}\r\n`;
+            }
+        }
+        
+        requestRaw += `Content-Length: ${contentLength}\r\n`;
+        requestRaw += `Connection: close\r\n\r\n`; 
+        requestRaw += bodyStr; 
+
+        const options = {
+            host: urlObj.hostname,
+            port: 443,
+            servername: urlObj.hostname, 
+            rejectUnauthorized: false, 
+            ciphers: "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256",
+            ALPNProtocols: ['http/1.1'] 
+        };
+
+        const socket = tls.connect(options, () => {
+            socket.write(requestRaw);
+        });
+
+        let rawResponse = Buffer.alloc(0);
+
+        socket.on('data', (chunk) => {
+            rawResponse = Buffer.concat([rawResponse, chunk]);
+        });
+
+        socket.on('end', () => {
+            const responseString = rawResponse.toString('binary');
+            const headerBodySplitIndex = responseString.indexOf('\r\n\r\n');
+            
+            if (headerBodySplitIndex === -1) {
+                return resolve({ success: false, error: "Invalid HTTP Format" });
+            }
+
+            const headerPart = responseString.substring(0, headerBodySplitIndex);
+            let bodyBuffer = rawResponse.subarray(headerBodySplitIndex + 4); 
+
+            const statusLine = headerPart.split('\r\n')[0];
+            const statusCode = parseInt(statusLine.split(' ')[1]);
+
+            const responseHeaders = {};
+            const headerLines = headerPart.split('\r\n').slice(1);
+            headerLines.forEach(line => {
+                const parts = line.split(':');
+                if (parts.length > 1) {
+                    const key = parts[0].trim().toLowerCase();
+                    const value = parts.slice(1).join(':').trim();
+                    responseHeaders[key] = value;
+                }
+            });
+
+            if (responseHeaders['st']) {
+                session.st = responseHeaders['st'];
+            }
+
+            if (statusCode === 403 || statusCode === 401) {
+                return resolve({ success: false, statusCode, raw: bodyBuffer.toString('utf8').substring(0, 200), error: `WAF Blocked (${statusCode})` });
+            }
+
+            if (responseHeaders['content-encoding'] === 'gzip') {
+                try { bodyBuffer = zlib.gunzipSync(bodyBuffer); } catch (e) {}
+            }
+
+            const bodyString = bodyBuffer.toString('utf8');
+            let finalDataString = bodyString;
+            
+            if (responseHeaders['transfer-encoding'] === 'chunked') {
+                try {
+                     const startBracket = bodyString.indexOf('{');
+                     const endBracket = bodyString.lastIndexOf('}');
+                     if(startBracket !== -1 && endBracket !== -1) {
+                         finalDataString = bodyString.substring(startBracket, endBracket + 1);
+                     }
+                } catch(e){}
+            }
+
+            try {
+                const parsed = JSON.parse(finalDataString);
+                resolve({ success: statusCode === 200, statusCode: statusCode, data: parsed });
+            } catch (e) {
+                resolve({ success: false, statusCode: statusCode, raw: finalDataString.substring(0, 300), error: "JSON Parse Error" });
+            }
+        });
+
+        socket.on('error', (err) => reject(err));
+        socket.setTimeout(15000);
+        socket.on('timeout', () => {
+            socket.destroy();
+            resolve({ success: false, error: "Socket Timeout" });
+        });
+    });
+}
+
+function buildHeaders(signature, tokenStr) {
+    return {
+        "accept-encoding": "gzip",
+        "version": "580",
+        "package-name": "com.storymatrix.drama",
+        "p": "63",
+        "cid": "DRA1000042",
+        "apn": "2",
+        "country-code": "ID",
+        "mchid": "DRA1000042",
+        "tz": "-420",
+        "language": "in",
+        "mcc": "510",
+        "locale": "in_ID",
+        "is_root": "0",
+        "device-id": session.deviceid,
+        "nchid": "DRA1000042",
+        "instanceid": session.instanceid,
+        "md": "Redmi Note 5",
+        "store-source": "store_google",
+        "mf": "XIAOMI",
+        "device-score": "60",
+        "local-time": getLocalTime(),
+        "time-zone": "+0700",
+        "brand": "Xiaomi",
+        "lat": "0",
+        "is_emulator": "0",
+        "current-language": "in",
+        "ov": "10",
+        "afid": session.afid,
+        "android-id": session.androidid,
+        "srn": "1080x2160",
+        "ins": session.ins,
+        "is_vpn": "1",
+        "build": "Build/QQ3A.200805.001",
+        "pline": "ANDROID",
+        "vn": "5.8.0",
+        "over-flow": "new-fly",
+        "tn": tokenStr ? `Bearer ${tokenStr}` : "",
+        "sn": signature,
+        "st": session.st,
+        "active-time": Math.floor(Math.random() * 20000).toString(),
+        "content-type": "application/json; charset=UTF-8",
+        "user-agent": "okhttp/4.12.0"
     };
+}
 
+async function postRequest(endpoint, body) {
+    // 1. Minta Signature ke Vercel Cloud
+    const signData = await getRemoteSignature(body);
+    if (!signData) return { success: false, error: "Cloud signature generation failed" };
+
+    // 2. Bangun headers menggunakan signature dari Vercel
+    const headers = buildHeaders(signData.sn, session.token);
     const fullEndpoint = endpoint.includes('?') ? `${endpoint}&timestamp=${signData.timestamp}` : `${endpoint}?timestamp=${signData.timestamp}`;
 
+    // 3. Tembak menggunakan Raw TLS Socket Bypass
     try {
-        const response = await axios.post(fullEndpoint, body, { headers, httpsAgent: androidHttpsAgent, timeout: 15000 });
-        if (response.data && response.data.data) return { success: true, data: response.data.data };
-        return { success: false, error: "Empty Data" };
+        const response = await wRequest(fullEndpoint, body, headers);
+        
+        if (response.success && response.data && response.data.data) {
+            return { success: true, data: response.data.data };
+        }
+        return { success: false, error: response.error || "Empty Data", raw: response.raw };
     } catch (error) {
         return { success: false, error: error.message };
     }
 }
 
-// cli input helper
+// --- CLI ENGINE ---
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const ask = (q) => new Promise((resolve) => rl.question(`${c.ylw}?${c.rst} ${q}`, resolve));
 
-// scraping modules
-
-// Payload Result: res.data.searchList[i] -> { bookId, bookName, playCount, tagNames, corner: { name } }
 async function doSearch() {
     log.header("SEARCH ENGINE");
     const keyword = await ask("Enter Keyword (Title/Genre): ");
@@ -181,7 +319,7 @@ async function doSearch() {
             "pageNo": page, "pageSize": 20, "from": fromParam, "keyword": keyword
         };
 
-        const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/search/search", body);
+        const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/search/search", body);
 
         if (res.success && res.data && res.data.searchList && res.data.searchList.length > 0) {
             allResults = allResults.concat(res.data.searchList);
@@ -204,15 +342,21 @@ async function doSearch() {
     }
 }
 
-// Payload Result: res.data.newTheaterList.records[i] -> { bookId, bookName, chapterCount, playCount, tags }
 async function doLatest() {
     log.header("LATEST RELEASES");
     let page = 1, keepFetching = true, allResults = [];
 
     while (keepFetching) {
         process.stdout.write(`\r${c.blu}[~]${c.rst} Fetching page ${page}... `);
-        const body = { "newChannelStyle": 1, "isNeedRank": 1, "pageNo": page, "index": 1, "channelId": 43 };
-        const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/theater", body);
+        const body = { 
+            "newChannelStyle": 1, 
+            "isNeedRank": 1, 
+            "pageNo": page, 
+            "index": 1, 
+            "channelId": 43,
+            "recSessionId": crypto.randomBytes(32).toString('hex')
+        };
+        const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/theater", body);
 
         if (res.success && res.data.newTheaterList && res.data.newTheaterList.records.length > 0) {
             allResults = allResults.concat(res.data.newTheaterList.records);
@@ -235,12 +379,19 @@ async function doLatest() {
     }
 }
 
-// Payload Result: res.data.columnVoList[i].bookList[j] -> { bookId, bookName, chapterCount }
 async function doGetForYou() {
     log.header("FOR YOU (FYP)");
     log.step("Fetching algorithmic recommendations... ");
-    const body = { "homePageStyle": 0, "isNeedRank": 1, "isNeedNewChannel": 1, "type": 0 };
-    const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/theater", body);
+    const body = { 
+        "homePageStyle": 0, 
+        "isNeedRank": 1, 
+        "isNeedNewChannel": 1, 
+        "type": 0,
+        "index": 0,
+        "channelId": 175,
+        "recSessionId": crypto.randomBytes(32).toString('hex')
+    };
+    const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/theater", body);
 
     if (res.success && res.data.columnVoList) {
         console.log(`${c.grn}SUCCESS${c.rst}`);
@@ -255,11 +406,10 @@ async function doGetForYou() {
     }
 }
 
-// Payload Result: res.data.reserveBookList[i] -> { bookId, bookName, bookShelfTime, tags, introduction }
 async function doGetComingSoon() {
     log.header("COMING SOON");
     log.step("Fetching upcoming catalog... ");
-    const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/reserveBook", {});
+    const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/reserveBook", {});
 
     if (res.success && res.data.reserveBookList && res.data.reserveBookList.length > 0) {
         const books = res.data.reserveBookList;
@@ -275,7 +425,6 @@ async function doGetComingSoon() {
     }
 }
 
-// Payload Result: res.data.rankList[i] -> { bookId, bookName, chapterCount, rankVo: { sort, hotCode } }
 async function doGetRank() {
     log.header("LEADERBOARDS");
     console.log(`${c.dim}Categories:${c.rst} [1] Trending  [2] Popular Search  [3] Newest`);
@@ -283,7 +432,7 @@ async function doGetRank() {
     const rankType = ['1', '2', '3'].includes(choice.trim()) ? parseInt(choice.trim()) : 1;
 
     log.step(`Fetching Rank Type [${rankType}]... `);
-    const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/rank", { "rankType": rankType });
+    const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/rank", { "rankType": rankType });
 
     if (res.success && res.data.rankList && res.data.rankList.length > 0) {
         console.log(`${c.grn}SUCCESS${c.rst}`);
@@ -295,12 +444,11 @@ async function doGetRank() {
     }
 }
 
-// Payload Result: res.data.columnVoList[i].bookList[j] -> { bookId, bookName, playCount, chapterCount, tags }
 async function doGetVip() {
     log.header("VIP EXCLUSIVES");
     log.step("Fetching VIP & Weekly Selection... ");
     const body = { "homePageStyle": 0, "isNeedRank": 1, "index": 4, "type": 0, "channelId": 205 };
-    const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/theater", body);
+    const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/theater", body);
 
     if (res.success && res.data.columnVoList && res.data.columnVoList.length > 0) {
         console.log(`${c.grn}SUCCESS${c.rst}`);
@@ -315,7 +463,6 @@ async function doGetVip() {
     }
 }
 
-// Payload Result: res.data.classifyBookList.records[i] -> { bookId, bookName, tags, introduction }
 async function doGetClassify() {
     log.header("CLASSIFY EXPLORER");
     let page = 1, keepFetching = true, allResults = [];
@@ -323,7 +470,7 @@ async function doGetClassify() {
     while (keepFetching) {
         process.stdout.write(`\r${c.blu}[~]${c.rst} Fetching page ${page}... `);
         const body = { "typeList": [], "showLabels": true, "pageNo": page, "pageSize": 15 };
-        const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/he001/classify", body);
+        const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/classify", body);
 
         if (res.success && res.data.classifyBookList && res.data.classifyBookList.records.length > 0) {
             allResults = allResults.concat(res.data.classifyBookList.records);
@@ -346,7 +493,6 @@ async function doGetClassify() {
     }
 }
 
-// Payload Result: res.data.chapterList[i] -> { chapterId, chapterIndex, bookId, cdnList... }
 async function doGetEpisodes() {
     log.header("RAW EPISODE FETCHER");
     const bookId = await ask("Target Book ID (e.g. 42000009439): ");
@@ -361,13 +507,15 @@ async function doGetEpisodes() {
     while (keepGoing) {
         process.stdout.write(`\r${c.blu}[~]${c.rst} Streaming batch ${c.bld}#${batchCount}${c.rst} (Cursor: ${currentIndex})... `);
         const body = {
-            "boundaryIndex": 0, "index": parseInt(currentIndex), "currencyPlaySource": "ssym_rank_search",
-            "needEndRecommend": 0, "currencyPlaySourceName": "搜索页面热门搜索_热搜榜", "preLoad": false,
+            "boundaryIndex": 0, "index": parseInt(currentIndex), "currencyPlaySource": "discover_175_rec",
+            "needEndRecommend": 0, "currencyPlaySourceName": "首页发现_Untukmu_推荐列表", "preLoad": false,
             "rid": "", "pullCid": "", "enterReaderChapterIndex": 0,
-            "loadDirection": currentIndex === -1 ? 0 : 2, "bookId": String(bookId)
+            "loadDirection": currentIndex === -1 ? 0 : 2, 
+            "startUpKey": crypto.randomUUID(),
+            "bookId": String(bookId)
         };
 
-        const res = await postRequest("https://sapi.dramaboxdb.com/drama-box/chapterv2/batch/load", body);
+        const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/chapterv2/batch/load", body);
 
         if (res.success && res.data.chapterList && res.data.chapterList.length > 0) {
             const chapters = res.data.chapterList;
@@ -385,6 +533,7 @@ async function doGetEpisodes() {
             if (chapters.length < 5) keepGoing = false;
             await new Promise(r => setTimeout(r, 600)); 
         } else {
+            console.log(`${c.red}FAILED/EMPTY${c.rst}`);
             keepGoing = false;
         }
     }
@@ -395,9 +544,8 @@ async function doGetEpisodes() {
     saveToFile(`raw_episodes_${bookId}.json`, allEpisodesRaw);
 }
 
-// Payload Result: Decrypted playable video URL output directly to console
 async function doDecryptUrl() {
-    log.header("EXSALA PROXY DECRYPTOR");
+    log.header("ALIYUN PROXY DECRYPTOR");
     const rawUrl = await ask("Input Target URL (.encrypt.mp4): ");
     
     if (!rawUrl || rawUrl.trim() === "") {
@@ -405,20 +553,19 @@ async function doDecryptUrl() {
         return;
     }
 
-    const decryptedUrl = `https://exsalapi.my.id/api/video/decrypt-proxy?url=${encodeURIComponent(rawUrl.trim())}&apikey=freepublic`;
+    const decryptedUrl = `https://nb-dramabox-gentoken.vercel.app/decrypt-video?url=${encodeURIComponent(rawUrl.trim())}`;
     
     log.ok("Decryption Route Generated:");
     console.log(`\n${c.cyn}${c.bld}${decryptedUrl}${c.rst}\n`);
     log.info("Copy this URL to VLC/IDM/Browser to play.");
 }
 
-// application bootstrap
 async function main() {
     printBanner();
 
     const isConnected = await generateToken();
     if (!isConnected) {
-        log.err("FATAL: Failed to obtain Session. Check network or Called Gienetic for Updates.");
+        log.err("FATAL: Failed to obtain Session via Vercel. Check network or API URL.");
         process.exit(1);
     }
 
@@ -455,5 +602,4 @@ async function main() {
     }
 }
 
-// ignition
 main();
