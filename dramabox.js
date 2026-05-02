@@ -1,31 +1,44 @@
 /**
  * Dramabox Scraper CLI Engine
  * Ultimate Developer Edition
- * Cloud Crypto Signature (Vercel) + Akamai WAF Bypass (HTTP/1.1 TLS Socket)
+ * Features: Cloud Crypto Signature, Akamai WAF Bypass (TLS Socket), SOCKS5 Auto-Rotation
  * Author: Gienetic
  */
- 
+
 import readline from "readline";
 import fs from "fs";
-import tls from "tls"; 
+import tls from "tls";
 import crypto from "crypto";
 import zlib from "zlib";
 import axios from "axios";
+import { SocksClient } from "socks";
 
-// --- KONFIGURASI API & SESI ---
-const API_BASE = "https://nb-dramabox-gentoken.vercel.app";
+// ============================================================================
+// 1. SYSTEM CONFIGURATION
+// ============================================================================
+const CONFIG = {
+    API_BASE: "https://nb-dramabox-gentoken.vercel.app",
+    // Kamu harus memasukkan URL API SOCKS5 Pool di sini
+    PROXY_API_URL: "https://exsalapi.my.id/api/network/socks5-pool?apikey=YOUR_API_KEY_HERE",
+    TIMEOUT_MS: 15000,
+    MAX_RETRIES: 5
+};
 
-let session = {
+let currentProxy = null;
+const session = {
     token: "",
     deviceid: "",
     androidid: "",
-    instanceid: crypto.randomBytes(16).toString('hex'),
-    afid: Date.now() + "-" + Math.floor(Math.random() * 9999999999999999),
+    instanceid: crypto.randomBytes(16).toString("hex"),
+    afid: `${Date.now()}-${Math.floor(Math.random() * 9999999999999999)}`,
     ins: Date.now().toString(),
-    st: "cK4n10B_0tTQBrxFyyBWnOKD" 
+    st: "cK4n10B_0tTQBrxFyyBWnOKD",
+    cookies: []
 };
 
-// --- CLI UI & COLORS ---
+// ============================================================================
+// 2. UI & TERMINAL LOGGING UTILS
+// ============================================================================
 const c = {
     rst: "\x1b[0m", dim: "\x1b[2m", bld: "\x1b[1m",
     red: "\x1b[31m", grn: "\x1b[32m", ylw: "\x1b[33m",
@@ -40,6 +53,9 @@ const log = {
     step: (msg) => process.stdout.write(`${c.blu}[~]${c.rst} ${msg}`),
     header: (title) => console.log(`\n${c.mag}${c.bld}--- [ ${title} ] ---${c.rst}\n`)
 };
+
+const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+const ask = (q) => new Promise((resolve) => rl.question(`${c.ylw}?${c.rst} ${q}`, resolve));
 
 function printBanner() {
     console.clear();
@@ -56,21 +72,23 @@ function printBanner() {
     console.log(`██╔══██╗██║   ██║ ██╔██╗ `);
     console.log(`██████╔╝╚██████╔╝██╔╝ ██╗`);
     console.log(`╚═════╝  ╚═════╝ ╚═╝  ╚═╝${c.rst}`);
-    console.log(`\n${c.dim}:: Core Engine V5.8.2 | Vercel Signature + TLS Bypass | Coded by Gienetic::${c.rst}\n`);
+    console.log(`\n${c.dim}:: Core Engine V5.9.0 | SOCKS5 Auto-Rotation | Coded by Gienetic ::${c.rst}\n`);
 }
 
-// --- CORE HELPERS ---
+// ============================================================================
+// 3. CORE HELPERS
+// ============================================================================
 function getLocalTime() {
     const now = new Date();
-    const offset = 7 * 60 * 60 * 1000;
-    const bangkokTime = new Date(now.getTime() + offset);
-    const pad = (n) => n.toString().padStart(2, '0');
-    return `${bangkokTime.getUTCFullYear()}-${pad(bangkokTime.getUTCMonth() + 1)}-${pad(bangkokTime.getUTCDate())} ${pad(bangkokTime.getUTCHours())}:${pad(bangkokTime.getUTCMinutes())}:${pad(bangkokTime.getUTCSeconds())}.${bangkokTime.getUTCMilliseconds().toString().padStart(3, '0')} +0700`;
+    const offset = 7 * 60 * 60 * 1000; // GMT+7
+    const bt = new Date(now.getTime() + offset);
+    const pad = (n) => n.toString().padStart(2, "0");
+    return `${bt.getUTCFullYear()}-${pad(bt.getUTCMonth() + 1)}-${pad(bt.getUTCDate())} ${pad(bt.getUTCHours())}:${pad(bt.getUTCMinutes())}:${pad(bt.getUTCSeconds())}.${bt.getUTCMilliseconds().toString().padStart(3, "0")} +0700`;
 }
 
 function saveToFile(filename, data) {
     try {
-        const safeFilename = filename.replace(/[^a-z0-9_.-]/gi, '_').toLowerCase();
+        const safeFilename = filename.replace(/[^a-z0-9_.-]/gi, "_").toLowerCase();
         fs.writeFileSync(safeFilename, JSON.stringify(data, null, 4));
         log.ok(`Dump saved: ${c.bld}${safeFilename}${c.rst}`);
     } catch (e) {
@@ -78,20 +96,50 @@ function saveToFile(filename, data) {
     }
 }
 
-// --- VERCEL CLOUD CRYPTO ---
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ============================================================================
+// 4. NETWORK & CRYPTO ENGINE
+// ============================================================================
+async function fetchNewProxy() {
+    if (CONFIG.PROXY_API_URL.includes("YOUR_API_KEY")) {
+        log.warn("Proxy API Key not set. Proceeding without proxy rotation.");
+        return false;
+    }
+
+    try {
+        const res = await axios.get(CONFIG.PROXY_API_URL, { timeout: 10000 });
+        if (res.data?.status && res.data.data?.proxies) {
+            const available = res.data.data.proxies.filter(p => p.status === "standby" && p.is_ready);
+            
+            if (available.length > 0) {
+                const randomProxy = available[Math.floor(Math.random() * available.length)];
+                const [ip, port] = randomProxy.address.split(":");
+                currentProxy = { ip, port: parseInt(port, 10), loc: randomProxy.location };
+                console.log(`\n${c.grn}[Proxy Rotated] ${currentProxy.ip}:${currentProxy.port} (${currentProxy.loc})${c.rst}`);
+                return true;
+            }
+        }
+        return false;
+    } catch (error) {
+        log.err(`Proxy Error: ${error.message}`);
+        return false;
+    }
+}
+
 async function generateToken() {
     try {
         log.step("Initializing Session via Vercel... ");
-        const res = await axios.get(`${API_BASE}/generate-token`, { timeout: 20000 });
+        const res = await axios.get(`${CONFIG.API_BASE}/generate-token`, { timeout: CONFIG.TIMEOUT_MS });
         
-        if (res.data && res.data.status && res.data.data) {
+        if (res.data?.status && res.data?.data) {
             session.token = res.data.data.sn;
             session.deviceid = res.data.data.device_id;
             session.androidid = res.data.data.android_id;
+            session.cookies = [];
             console.log(`${c.grn}SUCCESS${c.rst}`);
             return true;
         }
-        
         console.log(`${c.red}FAILED${c.rst}`);
         return false;
     } catch (error) {
@@ -102,124 +150,17 @@ async function generateToken() {
 
 async function getRemoteSignature(bodyPayload) {
     try {
-        const res = await axios.post(`${API_BASE}/sign`, {
+        const payload = {
             body: bodyPayload, 
             device_id: session.deviceid,
             android_id: session.androidid, 
             token: session.token
-        }, { timeout: 15000 });
-        
-        return (res.data && res.data.status) ? res.data.data : null;
+        };
+        const res = await axios.post(`${CONFIG.API_BASE}/sign`, payload, { timeout: CONFIG.TIMEOUT_MS });
+        return res.data?.status ? res.data.data : null;
     } catch (error) {
         return null;
     }
-}
-
-
-// --- RAW TLS SOCKET BYPASS (UNTUK PENGAMBILAN DATA) ---
-function wRequest(urlStr, bodyObj, headersInput) {
-    return new Promise((resolve, reject) => {
-        const urlObj = new URL(urlStr);
-        const bodyStr = JSON.stringify(bodyObj);
-        const contentLength = Buffer.byteLength(bodyStr);
-
-        let requestRaw = `POST ${urlObj.pathname}${urlObj.search} HTTP/1.1\r\n`;
-        requestRaw += `Host: ${urlObj.hostname}\r\n`;
-        
-        for (const [key, value] of Object.entries(headersInput)) {
-            if (key.toLowerCase() !== 'host' && key.toLowerCase() !== 'content-length') {
-                 requestRaw += `${key}: ${value}\r\n`;
-            }
-        }
-        
-        requestRaw += `Content-Length: ${contentLength}\r\n`;
-        requestRaw += `Connection: close\r\n\r\n`; 
-        requestRaw += bodyStr; 
-
-        const options = {
-            host: urlObj.hostname,
-            port: 443,
-            servername: urlObj.hostname, 
-            rejectUnauthorized: false, 
-            ciphers: "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256",
-            ALPNProtocols: ['http/1.1'] 
-        };
-
-        const socket = tls.connect(options, () => {
-            socket.write(requestRaw);
-        });
-
-        let rawResponse = Buffer.alloc(0);
-
-        socket.on('data', (chunk) => {
-            rawResponse = Buffer.concat([rawResponse, chunk]);
-        });
-
-        socket.on('end', () => {
-            const responseString = rawResponse.toString('binary');
-            const headerBodySplitIndex = responseString.indexOf('\r\n\r\n');
-            
-            if (headerBodySplitIndex === -1) {
-                return resolve({ success: false, error: "Invalid HTTP Format" });
-            }
-
-            const headerPart = responseString.substring(0, headerBodySplitIndex);
-            let bodyBuffer = rawResponse.subarray(headerBodySplitIndex + 4); 
-
-            const statusLine = headerPart.split('\r\n')[0];
-            const statusCode = parseInt(statusLine.split(' ')[1]);
-
-            const responseHeaders = {};
-            const headerLines = headerPart.split('\r\n').slice(1);
-            headerLines.forEach(line => {
-                const parts = line.split(':');
-                if (parts.length > 1) {
-                    const key = parts[0].trim().toLowerCase();
-                    const value = parts.slice(1).join(':').trim();
-                    responseHeaders[key] = value;
-                }
-            });
-
-            if (responseHeaders['st']) {
-                session.st = responseHeaders['st'];
-            }
-
-            if (statusCode === 403 || statusCode === 401) {
-                return resolve({ success: false, statusCode, raw: bodyBuffer.toString('utf8').substring(0, 200), error: `WAF Blocked (${statusCode})` });
-            }
-
-            if (responseHeaders['content-encoding'] === 'gzip') {
-                try { bodyBuffer = zlib.gunzipSync(bodyBuffer); } catch (e) {}
-            }
-
-            const bodyString = bodyBuffer.toString('utf8');
-            let finalDataString = bodyString;
-            
-            if (responseHeaders['transfer-encoding'] === 'chunked') {
-                try {
-                     const startBracket = bodyString.indexOf('{');
-                     const endBracket = bodyString.lastIndexOf('}');
-                     if(startBracket !== -1 && endBracket !== -1) {
-                         finalDataString = bodyString.substring(startBracket, endBracket + 1);
-                     }
-                } catch(e){}
-            }
-
-            try {
-                const parsed = JSON.parse(finalDataString);
-                resolve({ success: statusCode === 200, statusCode: statusCode, data: parsed });
-            } catch (e) {
-                resolve({ success: false, statusCode: statusCode, raw: finalDataString.substring(0, 300), error: "JSON Parse Error" });
-            }
-        });
-
-        socket.on('error', (err) => reject(err));
-        socket.setTimeout(15000);
-        socket.on('timeout', () => {
-            socket.destroy();
-            resolve({ success: false, error: "Socket Timeout" });
-        });
-    });
 }
 
 function buildHeaders(signature, tokenStr) {
@@ -269,321 +210,339 @@ function buildHeaders(signature, tokenStr) {
     };
 }
 
-async function postRequest(endpoint, body) {
-    // 1. Minta Signature ke Vercel Cloud
+function wRequest(urlStr, bodyObj, headersInput) {
+    return new Promise(async (resolve) => {
+        const urlObj = new URL(urlStr);
+        const bodyStr = JSON.stringify(bodyObj);
+        
+        if (session.cookies.length > 0) headersInput["Cookie"] = session.cookies.join("; ");
+
+        let requestRaw = `POST ${urlObj.pathname}${urlObj.search} HTTP/1.1\r\nHost: ${urlObj.hostname}\r\n`;
+        for (const [k, v] of Object.entries(headersInput)) {
+            if (!["host", "content-length", "cookie"].includes(k.toLowerCase())) requestRaw += `${k}: ${v}\r\n`;
+        }
+        if (headersInput["Cookie"]) requestRaw += `Cookie: ${headersInput["Cookie"]}\r\n`;
+        requestRaw += `Content-Length: ${Buffer.byteLength(bodyStr)}\r\nConnection: close\r\n\r\n${bodyStr}`;
+
+        const tlsOptions = {
+            host: urlObj.hostname,
+            servername: urlObj.hostname,
+            rejectUnauthorized: false,
+            ciphers: "TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256",
+            ALPNProtocols: ["http/1.1"]
+        };
+
+        let socket;
+        try {
+            if (currentProxy?.ip && currentProxy?.port) {
+                const proxyInfo = await SocksClient.createConnection({
+                    proxy: { ipaddress: currentProxy.ip, port: currentProxy.port, type: 5 },
+                    command: "connect",
+                    destination: { host: urlObj.hostname, port: 443 }
+                });
+                tlsOptions.socket = proxyInfo.socket;
+            } else {
+                tlsOptions.port = 443;
+            }
+            socket = tls.connect(tlsOptions, () => socket.write(requestRaw));
+        } catch (err) {
+            return resolve({ success: false, error: `Socket/Proxy Error: ${err.message}` });
+        }
+
+        let rawResponse = Buffer.alloc(0);
+        socket.on("data", (c) => rawResponse = Buffer.concat([rawResponse, c]));
+        socket.on("end", () => {
+            const resStr = rawResponse.toString("binary");
+            const splitIdx = resStr.indexOf("\r\n\r\n");
+            if (splitIdx === -1) return resolve({ success: false, error: "Invalid HTTP Format" });
+
+            const headerPart = resStr.substring(0, splitIdx);
+            let bodyBuffer = rawResponse.subarray(splitIdx + 4);
+            const statusCode = parseInt(headerPart.split("\r\n")[0].split(" ")[1], 10);
+
+            const headers = {};
+            headerPart.split("\r\n").slice(1).forEach(line => {
+                const parts = line.split(":");
+                if (parts.length > 1) {
+                    const key = parts[0].trim().toLowerCase();
+                    const val = parts.slice(1).join(":").trim();
+                    headers[key] = key === "set-cookie" ? [...(headers[key] || []), val] : val;
+                }
+            });
+
+            if (headers["st"]) session.st = headers["st"];
+            if (headers["set-cookie"]) {
+                headers["set-cookie"].forEach(cStr => {
+                    const mainCookie = cStr.split(";")[0];
+                    session.cookies = session.cookies.filter(c => !c.startsWith(mainCookie.split("=")[0] + "="));
+                    session.cookies.push(mainCookie);
+                });
+            }
+
+            if (statusCode >= 400) return resolve({ success: false, statusCode, error: `WAF Blocked (${statusCode})` });
+
+            if (headers["content-encoding"] === "gzip") {
+                try { bodyBuffer = zlib.gunzipSync(bodyBuffer); } catch (e) {}
+            }
+
+            let finalDataStr = bodyBuffer.toString("utf8");
+            if (headers["transfer-encoding"] === "chunked") {
+                const start = finalDataStr.indexOf("{"), end = finalDataStr.lastIndexOf("}");
+                if (start !== -1 && end !== -1) finalDataStr = finalDataStr.substring(start, end + 1);
+            }
+
+            try {
+                resolve({ success: true, statusCode, data: JSON.parse(finalDataStr) });
+            } catch (e) {
+                resolve({ success: false, statusCode, error: "JSON Parse Error" });
+            }
+        });
+
+        socket.on("error", (err) => resolve({ success: false, error: err.message }));
+        socket.setTimeout(CONFIG.TIMEOUT_MS);
+        socket.on("timeout", () => { socket.destroy(); resolve({ success: false, error: "Timeout" }); });
+    });
+}
+
+async function postData(endpoint, body) {
     const signData = await getRemoteSignature(body);
     if (!signData) return { success: false, error: "Cloud signature generation failed" };
 
-    // 2. Bangun headers menggunakan signature dari Vercel
     const headers = buildHeaders(signData.sn, session.token);
-    const fullEndpoint = endpoint.includes('?') ? `${endpoint}&timestamp=${signData.timestamp}` : `${endpoint}?timestamp=${signData.timestamp}`;
+    const qs = endpoint.includes("?") ? "&" : "?";
+    const fullEndpoint = `${endpoint}${qs}timestamp=${signData.timestamp}`;
 
-    // 3. Tembak menggunakan Raw TLS Socket Bypass
-    try {
-        const response = await wRequest(fullEndpoint, body, headers);
-        
-        if (response.success && response.data && response.data.data) {
-            return { success: true, data: response.data.data };
-        }
-        return { success: false, error: response.error || "Empty Data", raw: response.raw };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
+    const res = await wRequest(fullEndpoint, body, headers);
+    return res.success && res.data?.data ? { success: true, data: res.data.data } : { success: false, error: res.error || "Empty Data" };
 }
 
-// --- CLI ENGINE ---
-const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-const ask = (q) => new Promise((resolve) => rl.question(`${c.ylw}?${c.rst} ${q}`, resolve));
-
+// ============================================================================
+// 5. SCRAPING MODULES
+// ============================================================================
 async function doSearch() {
     log.header("SEARCH ENGINE");
     const keyword = await ask("Enter Keyword (Title/Genre): ");
-    
     console.log(`\n${c.dim}Filters:${c.rst} [1] Trending  [2] Latest  [3] Unwatched`);
     const sortChoice = await ask("Select Sort Type (1-3): ");
     
-    let sortType = 1, typeName = "Trending";
-    if (sortChoice.trim() === '2') { sortType = 2; typeName = "Latest"; }
-    if (sortChoice.trim() === '3') { sortType = 3; typeName = "Unwatched"; }
+    const sortType = parseInt(sortChoice) || 1;
+    const typeName = ["", "Trending", "Latest", "Unwatched"][sortType];
+    const searchSource = sortType >= 2 ? "搜索按钮" : "";
+    const fromParam = sortType >= 2 ? "search_sug" : "search_result";
 
-    const searchSource = (sortType === 2 || sortType === 3) ? "搜索按钮" : "";
-    const fromParam = (sortType === 2 || sortType === 3) ? "search_sug" : "search_result";
-
-    let page = 1, keepFetching = true, allResults = [];
+    let page = 1, allResults = [];
     console.log("");
 
-    while (keepFetching) {
+    while (true) {
         process.stdout.write(`\r${c.blu}[~]${c.rst} Fetching page ${page}... `);
-        const body = {
-            "searchSource": searchSource, "sortType": sortType, "synSwitch": 1,
-            "pageNo": page, "pageSize": 20, "from": fromParam, "keyword": keyword
-        };
+        const body = { searchSource, sortType, synSwitch: 1, pageNo: page, pageSize: 20, from: fromParam, keyword };
+        const res = await postData("https://sapi.dramaboxvideo.com/drama-box/search/search", body);
 
-        const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/search/search", body);
-
-        if (res.success && res.data && res.data.searchList && res.data.searchList.length > 0) {
-            allResults = allResults.concat(res.data.searchList);
+        if (res.success && res.data?.searchList?.length > 0) {
+            allResults.push(...res.data.searchList);
             console.log(`${c.grn}OK!${c.rst} (${res.data.searchList.length} items)`);
-            
-            if (res.data.isMore === 0 || res.data.searchList.length < 20) {
-                keepFetching = false;
-            } else {
-                page++;
-                await new Promise(r => setTimeout(r, 800)); 
-            }
+            if (res.data.isMore === 0 || res.data.searchList.length < 20) break;
+            page++;
+            await sleep(800);
         } else {
             console.log(`${c.dim}End of results.${c.rst}`);
-            keepFetching = false;
+            break;
         }
     }
-    if (allResults.length > 0) {
-        log.info(`Total extracted: ${c.bld}${allResults.length} items${c.rst}`);
-        saveToFile(`search_${typeName}_${keyword}.json`, allResults);
-    }
+    if (allResults.length) saveToFile(`search_${typeName}_${keyword}.json`, allResults);
 }
 
 async function doLatest() {
     log.header("LATEST RELEASES");
-    let page = 1, keepFetching = true, allResults = [];
-
-    while (keepFetching) {
+    let page = 1, allResults = [];
+    while (true) {
         process.stdout.write(`\r${c.blu}[~]${c.rst} Fetching page ${page}... `);
-        const body = { 
-            "newChannelStyle": 1, 
-            "isNeedRank": 1, 
-            "pageNo": page, 
-            "index": 1, 
-            "channelId": 43,
-            "recSessionId": crypto.randomBytes(32).toString('hex')
-        };
-        const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/theater", body);
+        const body = { newChannelStyle: 1, isNeedRank: 1, pageNo: page, index: 1, channelId: 43, recSessionId: crypto.randomBytes(32).toString("hex") };
+        const res = await postData("https://sapi.dramaboxvideo.com/drama-box/he001/theater", body);
 
-        if (res.success && res.data.newTheaterList && res.data.newTheaterList.records.length > 0) {
-            allResults = allResults.concat(res.data.newTheaterList.records);
-            console.log(`${c.grn}OK!${c.rst} (${res.data.newTheaterList.records.length} items)`);
-            
-            const totalPages = res.data.newTheaterList.pages || 1;
-            if (page >= totalPages) keepFetching = false;
-            else {
-                page++;
-                await new Promise(r => setTimeout(r, 800));
-            }
-        } else {
-            console.log(`${c.dim}End of data.${c.rst}`);
-            keepFetching = false;
-        }
+        if (res.success && res.data?.newTheaterList?.records?.length > 0) {
+            allResults.push(...res.data.newTheaterList.records);
+            console.log(`${c.grn}OK!${c.rst}`);
+            if (page >= (res.data.newTheaterList.pages || 1)) break;
+            page++;
+            await sleep(800);
+        } else break;
     }
-    if (allResults.length > 0) {
-        log.info(`Total extracted: ${c.bld}${allResults.length} items${c.rst}`);
-        saveToFile("latest_full_release.json", allResults);
-    }
+    if (allResults.length) saveToFile("latest_full_release.json", allResults);
 }
 
 async function doGetForYou() {
     log.header("FOR YOU (FYP)");
     log.step("Fetching algorithmic recommendations... ");
-    const body = { 
-        "homePageStyle": 0, 
-        "isNeedRank": 1, 
-        "isNeedNewChannel": 1, 
-        "type": 0,
-        "index": 0,
-        "channelId": 175,
-        "recSessionId": crypto.randomBytes(32).toString('hex')
-    };
-    const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/theater", body);
+    const body = { homePageStyle: 0, isNeedRank: 1, isNeedNewChannel: 1, type: 0, index: 0, channelId: 175, recSessionId: crypto.randomBytes(32).toString("hex") };
+    const res = await postData("https://sapi.dramaboxvideo.com/drama-box/he001/theater", body);
 
-    if (res.success && res.data.columnVoList) {
+    if (res.success && res.data?.columnVoList) {
         console.log(`${c.grn}SUCCESS${c.rst}`);
-        let allBooks = [];
-        res.data.columnVoList.forEach(col => {
-            if (col.bookList && col.bookList.length > 0) allBooks = allBooks.concat(col.bookList);
-        });
-        log.info(`Total extracted: ${c.bld}${allBooks.length} items${c.rst}`);
-        saveToFile("foryou_recommended.json", allBooks);
-    } else {
-        console.log(`${c.red}FAILED/EMPTY${c.rst}`);
-    }
+        const books = res.data.columnVoList.flatMap(col => col.bookList || []);
+        saveToFile("foryou_recommended.json", books);
+    } else console.log(`${c.red}FAILED/EMPTY${c.rst}`);
 }
 
 async function doGetComingSoon() {
     log.header("COMING SOON");
     log.step("Fetching upcoming catalog... ");
-    const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/reserveBook", {});
+    const res = await postData("https://sapi.dramaboxvideo.com/drama-box/he001/reserveBook", {});
 
-    if (res.success && res.data.reserveBookList && res.data.reserveBookList.length > 0) {
-        const books = res.data.reserveBookList;
+    if (res.success && res.data?.reserveBookList?.length > 0) {
         console.log(`${c.grn}SUCCESS${c.rst}`);
-        
-        books.forEach(book => {
-            book.releaseDateLocal = book.bookShelfTime ? new Date(book.bookShelfTime).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : "TBA";
-        });
-        log.info(`Total extracted: ${c.bld}${books.length} items${c.rst}`);
+        const books = res.data.reserveBookList.map(b => ({
+            ...b, releaseDateLocal: b.bookShelfTime ? new Date(b.bookShelfTime).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" }) : "TBA"
+        }));
         saveToFile("coming_soon.json", books);
-    } else {
-        console.log(`${c.red}FAILED/EMPTY${c.rst}`);
-    }
+    } else console.log(`${c.red}FAILED/EMPTY${c.rst}`);
 }
 
 async function doGetRank() {
     log.header("LEADERBOARDS");
     console.log(`${c.dim}Categories:${c.rst} [1] Trending  [2] Popular Search  [3] Newest`);
-    const choice = await ask("Select Category (1-3): ");
-    const rankType = ['1', '2', '3'].includes(choice.trim()) ? parseInt(choice.trim()) : 1;
-
-    log.step(`Fetching Rank Type [${rankType}]... `);
-    const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/rank", { "rankType": rankType });
-
-    if (res.success && res.data.rankList && res.data.rankList.length > 0) {
+    const type = parseInt(await ask("Select Category (1-3): ")) || 1;
+    log.step(`Fetching Rank Type [${type}]... `);
+    
+    const res = await postData("https://sapi.dramaboxvideo.com/drama-box/he001/rank", { rankType: type });
+    if (res.success && res.data?.rankList?.length > 0) {
         console.log(`${c.grn}SUCCESS${c.rst}`);
-        const categoryName = res.data.rankTypeVoList?.find(r => r.rankType === rankType)?.rankName || `Rank_${rankType}`;
-        log.info(`Total extracted: ${c.bld}${res.data.rankList.length} items${c.rst}`);
-        saveToFile(`rank_${categoryName}.json`, res.data.rankList);
-    } else {
-        console.log(`${c.red}FAILED/EMPTY${c.rst}`);
-    }
+        saveToFile(`rank_category_${type}.json`, res.data.rankList);
+    } else console.log(`${c.red}FAILED/EMPTY${c.rst}`);
 }
 
 async function doGetVip() {
     log.header("VIP EXCLUSIVES");
     log.step("Fetching VIP & Weekly Selection... ");
-    const body = { "homePageStyle": 0, "isNeedRank": 1, "index": 4, "type": 0, "channelId": 205 };
-    const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/theater", body);
+    const res = await postData("https://sapi.dramaboxvideo.com/drama-box/he001/theater", { homePageStyle: 0, isNeedRank: 1, index: 4, type: 0, channelId: 205 });
 
-    if (res.success && res.data.columnVoList && res.data.columnVoList.length > 0) {
+    if (res.success && res.data?.columnVoList) {
         console.log(`${c.grn}SUCCESS${c.rst}`);
-        let allBooks = [];
-        res.data.columnVoList.forEach(col => {
-            if (col.bookList && col.bookList.length > 0) allBooks = allBooks.concat(col.bookList);
-        });
-        log.info(`Total extracted: ${c.bld}${allBooks.length} items across categories${c.rst}`);
-        saveToFile("vip_exclusive.json", allBooks);
-    } else {
-        console.log(`${c.red}FAILED/EMPTY${c.rst}`);
-    }
+        const books = res.data.columnVoList.flatMap(col => col.bookList || []);
+        saveToFile("vip_exclusive.json", books);
+    } else console.log(`${c.red}FAILED/EMPTY${c.rst}`);
 }
 
 async function doGetClassify() {
     log.header("CLASSIFY EXPLORER");
-    let page = 1, keepFetching = true, allResults = [];
-
-    while (keepFetching) {
+    let page = 1, allResults = [];
+    while (true) {
         process.stdout.write(`\r${c.blu}[~]${c.rst} Fetching page ${page}... `);
-        const body = { "typeList": [], "showLabels": true, "pageNo": page, "pageSize": 15 };
-        const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/he001/classify", body);
+        const res = await postData("https://sapi.dramaboxvideo.com/drama-box/he001/classify", { typeList: [], showLabels: true, pageNo: page, pageSize: 15 });
 
-        if (res.success && res.data.classifyBookList && res.data.classifyBookList.records.length > 0) {
-            allResults = allResults.concat(res.data.classifyBookList.records);
-            console.log(`${c.grn}OK!${c.rst} (${res.data.classifyBookList.records.length} items)`);
-            
-            if (res.data.classifyBookList.isMore === 0 || res.data.classifyBookList.records.length < 15) {
-                keepFetching = false;
-            } else {
-                page++;
-                await new Promise(r => setTimeout(r, 800));
-            }
-        } else {
-            console.log(`${c.dim}End of list.${c.rst}`);
-            keepFetching = false;
-        }
+        if (res.success && res.data?.classifyBookList?.records?.length > 0) {
+            allResults.push(...res.data.classifyBookList.records);
+            console.log(`${c.grn}OK!${c.rst}`);
+            if (res.data.classifyBookList.isMore === 0) break;
+            page++;
+            await sleep(800);
+        } else break;
     }
-    if (allResults.length > 0) {
-        log.info(`Total extracted: ${c.bld}${allResults.length} items${c.rst}`);
-        saveToFile("classify_full.json", allResults);
-    }
+    if (allResults.length) saveToFile("classify_full.json", allResults);
 }
 
 async function doGetEpisodes() {
-    log.header("RAW EPISODE FETCHER");
+    log.header("RAW EPISODE FETCHER (SHADOWBAN BYPASS)");
     const bookId = await ask("Target Book ID (e.g. 42000009439): ");
-    log.info(`Target locked. Initiating metadata extraction...`);
-    console.log(""); 
+    
+    if ((await ask("Use Auto Proxy Rotation for this task? (y/n): ")).toLowerCase() === "y") {
+        log.step("Fetching initial proxy... ");
+        await fetchNewProxy();
+    } else currentProxy = null;
 
-    let allEpisodesRaw = [];
-    let currentIndex = -1; 
-    let keepGoing = true;
-    let batchCount = 1;
+    let allEpisodesRaw = [], currentIndex = -1, batchCount = 1, consecutiveSkips = 0;
+    console.log("\nInitiating smart extraction...\n");
 
-    while (keepGoing) {
-        process.stdout.write(`\r${c.blu}[~]${c.rst} Streaming batch ${c.bld}#${batchCount}${c.rst} (Cursor: ${currentIndex})... `);
+    while (true) {
+        process.stdout.write(`\r${c.blu}[~]${c.rst} Fetching batch ${c.bld}#${batchCount}${c.rst} (Cursor: ${currentIndex})... `);
         const body = {
-            "boundaryIndex": 0, "index": parseInt(currentIndex), "currencyPlaySource": "discover_175_rec",
-            "needEndRecommend": 0, "currencyPlaySourceName": "首页发现_Untukmu_推荐列表", "preLoad": false,
-            "rid": "", "pullCid": "", "enterReaderChapterIndex": 0,
-            "loadDirection": currentIndex === -1 ? 0 : 2, 
-            "startUpKey": crypto.randomUUID(),
-            "bookId": String(bookId)
+            boundaryIndex: 0, index: parseInt(currentIndex), currencyPlaySource: "discover_175_rec",
+            needEndRecommend: 0, currencyPlaySourceName: "首页发现_Untukmu_推荐列表", preLoad: false,
+            rid: "", pullCid: "", enterReaderChapterIndex: 0,
+            loadDirection: currentIndex === -1 ? 0 : 2, startUpKey: crypto.randomUUID(), bookId: String(bookId)
         };
 
-        const res = await postRequest("https://sapi.dramaboxvideo.com/drama-box/chapterv2/batch/load", body);
+        const res = await postData("https://sapi.dramaboxvideo.com/drama-box/chapterv2/batch/load", body);
+        const isKosong = res.success && (!res.data?.chapterList?.length);
+        const isProxyErr = !res.success && res.error?.includes("Proxy");
 
-        if (res.success && res.data.chapterList && res.data.chapterList.length > 0) {
-            const chapters = res.data.chapterList;
-            const newChapters = chapters.filter(newEps => !allEpisodesRaw.some(existEps => existEps.chapterId === newEps.chapterId));
-
-            if (newChapters.length === 0) {
-                console.log(`\n${c.ylw}[!] Anti-Loop mechanism triggered. Stopping.${c.rst}`);
+        if (!res.success || isKosong) {
+            consecutiveSkips++;
+            console.log(`\n${c.ylw}[!] Blocked/Empty on index ${currentIndex}. Attempt ${consecutiveSkips}/${CONFIG.MAX_RETRIES}...${c.rst}`);
+            
+            if (consecutiveSkips >= CONFIG.MAX_RETRIES) {
+                console.log(`${c.red}[-] Max retries reached. Safely exiting.${c.rst}`);
                 break;
             }
+            if (consecutiveSkips === 2 || consecutiveSkips === 4) {
+                log.step("Rotating Session Token... ");
+                await generateToken();
+            }
+            if (currentProxy && (consecutiveSkips === 3 || isProxyErr)) {
+                log.step("Rotating Proxy IP... ");
+                await fetchNewProxy();
+            }
 
-            allEpisodesRaw = allEpisodesRaw.concat(newChapters);
-            currentIndex = parseInt(newChapters[newChapters.length - 1].chapterIndex);
-            batchCount++;
-
-            if (chapters.length < 5) keepGoing = false;
-            await new Promise(r => setTimeout(r, 600)); 
-        } else {
-            console.log(`${c.red}FAILED/EMPTY${c.rst}`);
-            keepGoing = false;
+            if (currentIndex !== -1 && !isProxyErr) currentIndex += 5;
+            await sleep(2000 + Math.random() * 2000);
+            continue;
         }
+
+        consecutiveSkips = 0;
+        const newChapters = res.data.chapterList.filter(n => !allEpisodesRaw.some(e => e.chapterId === n.chapterId));
+        
+        if (!newChapters.length) {
+            currentIndex += 5;
+            consecutiveSkips++;
+        } else {
+            allEpisodesRaw.push(...newChapters);
+            currentIndex = parseInt(newChapters[newChapters.length - 1].chapterIndex);
+            console.log(`${c.grn}OK!${c.rst} Total: ${allEpisodesRaw.length}`);
+        }
+        batchCount++;
+        await sleep(1000 + Math.random() * 800);
     }
     
-    allEpisodesRaw.sort((a, b) => a.chapterIndex - b.chapterIndex);
-    console.log(`\n\n${c.grn}Extraction Complete!${c.rst}`);
-    log.info(`Successfully parsed ${c.bld}${allEpisodesRaw.length}${c.rst} raw episodes.`);
-    saveToFile(`raw_episodes_${bookId}.json`, allEpisodesRaw);
+    currentProxy = null; // Reset
+    if (allEpisodesRaw.length) {
+        allEpisodesRaw.sort((a, b) => a.chapterIndex - b.chapterIndex);
+        log.info(`Extraction complete. Parsed ${c.bld}${allEpisodesRaw.length}${c.rst} episodes.`);
+        saveToFile(`raw_episodes_${bookId}.json`, allEpisodesRaw);
+    }
 }
 
 async function doDecryptUrl() {
     log.header("ALIYUN PROXY DECRYPTOR");
     const rawUrl = await ask("Input Target URL (.encrypt.mp4): ");
-    
-    if (!rawUrl || rawUrl.trim() === "") {
-        log.err("URL cannot be empty.");
-        return;
-    }
+    if (!rawUrl.trim()) return log.err("URL cannot be empty.");
 
-    const decryptedUrl = `https://nb-dramabox-gentoken.vercel.app/decrypt-video?url=${encodeURIComponent(rawUrl.trim())}`;
-    
+    const decryptedUrl = `${CONFIG.API_BASE}/api/tools/dramabox/decrypt-video?url=${encodeURIComponent(rawUrl.trim())}`;
     log.ok("Decryption Route Generated:");
     console.log(`\n${c.cyn}${c.bld}${decryptedUrl}${c.rst}\n`);
-    log.info("Copy this URL to VLC/IDM/Browser to play.");
+    log.info("Copy this URL to VLC/IDM/Browser to play/download.");
 }
 
+// ============================================================================
+// 6. MAIN EXECUTION
+// ============================================================================
 async function main() {
     printBanner();
-
-    const isConnected = await generateToken();
-    if (!isConnected) {
-        log.err("FATAL: Failed to obtain Session via Vercel. Check network or API URL.");
-        process.exit(1);
-    }
+    if (!(await generateToken())) return process.exit(1);
 
     while (true) {
         console.log(`\n${c.wht}${c.bld}--- [ MAIN DASHBOARD ] ---${c.rst}`);
-        console.log(`  ${c.cyn}[ 01 ]${c.rst} Search Drama (Deep Scan)`);
-        console.log(`  ${c.cyn}[ 02 ]${c.rst} Fetch Latest Releases`);
-        console.log(`  ${c.cyn}[ 03 ]${c.rst} Fetch For You (FYP)`);
-        console.log(`  ${c.cyn}[ 04 ]${c.rst} Fetch Coming Soon`);
-        console.log(`  ${c.cyn}[ 05 ]${c.rst} Fetch Leaderboards`);
-        console.log(`  ${c.cyn}[ 06 ]${c.rst} Fetch VIP Exclusives`);
-        console.log(`  ${c.cyn}[ 07 ]${c.rst} Classify Category Explorer`);
-        console.log(`  ${c.mag}[ 08 ]${c.rst} ${c.bld}Extract Raw Episodes${c.rst}`);
-        console.log(`  ${c.ylw}[ 09 ]${c.rst} Bypass & Decrypt URL`);
+        const menus = [
+            "Search Drama (Deep Scan)", "Fetch Latest Releases", "Fetch For You (FYP)",
+            "Fetch Coming Soon", "Fetch Leaderboards", "Fetch VIP Exclusives",
+            "Classify Category Explorer", `${c.bld}Extract Raw Episodes (SOCKS5 Auto-Rotate)${c.rst}`,
+            "Bypass & Decrypt URL (Vercel Node)"
+        ];
+        
+        menus.forEach((m, i) => console.log(`  ${c.cyn}[ 0${i + 1} ]${c.rst} ${m}`));
         console.log(`  ${c.red}[ 00 ]${c.rst} Exit Termux\n`);
 
-        const c_input = await ask("Execute module: ");
-        switch (c_input.trim()) {
+        const choice = (await ask("Execute module: ")).trim();
+        switch (choice) {
             case "1": case "01": await doSearch(); break;
             case "2": case "02": await doLatest(); break;
             case "3": case "03": await doGetForYou(); break;
@@ -593,11 +552,8 @@ async function main() {
             case "7": case "07": await doGetClassify(); break;
             case "8": case "08": await doGetEpisodes(); break;
             case "9": case "09": await doDecryptUrl(); break;
-            case "0": case "00": 
-                log.info("Shutting down core engine... Goodbye!"); 
-                process.exit(0);
-            default: 
-                log.warn("Invalid module sequence. Select 00 - 09.");
+            case "0": case "00": log.info("Shutting down core engine... Goodbye!"); return process.exit(0);
+            default: log.warn("Invalid module sequence. Select 00 - 09.");
         }
     }
 }

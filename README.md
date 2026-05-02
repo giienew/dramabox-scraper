@@ -1,119 +1,179 @@
-# Dramabox Scraper V5 (Ultimate Edition)
+# 🎬 Dramabox Scraper V5.9.0  
+### Ultimate Developer Edition
 
-**Dramabox Scraper V5 - Ultimate Edition.**
-Script scraper berbasis Node.js yang telah di-upgrade secara masif menggunakan *headers* dan logika terbaru dari aplikasi original versi **5.6.1**. Script ini menggunakan metode **Remote Signing** untuk keamanan dan telah dilengkapi dengan **Exsala Video Decryptor** untuk mengekstrak URL streaming secara langsung.
+Dramabox Scraper adalah **Node.js-based scraping toolkit** yang dirancang untuk melakukan ekstraksi data dari platform Dramabox dengan pendekatan **advanced bypass techniques**.
 
-**Status:** ✅ WORK 100% (VIP, All Menus Unlocked, & Video Decryptor)  
-**Powered by:** Exsala API & NB Community
-
----
-
-## 🔥 What's New in V5 (Ultimate Edition)?
-
-Versi ini membawa perubahan besar-besaran dari versi sebelumnya, menjadikannya alat *data mining* terlengkap untuk Dramabox:
-
-* ✅ **Header & Endpoint Terbaru (v5.6.1):** Menggunakan `p: 60` dan version code terbaru agar aman dari WAF Akamai. Endpoint pencarian di-upgrade ke `/search/search` dengan dukungan filter dinamis.
-* ✅ **Smart Auto-Pagination:** Tidak ada lagi konfirmasi manual (y/n). Script akan membaca parameter `pages` dan `isMore` dari server untuk menguras seluruh halaman hingga akar-akarnya.
-* ✅ **Advanced Search Filter:** Mendukung pencarian spesifik berdasarkan: Sedang Tren (Trending), Terbaru (Latest), dan Belum Ditonton (Unwatched).
-* ✅ **Exsala Video Decryptor:** Fitur pemungkas (Menu 9) untuk men-decrypt URL MP4/M3U8 yang terenkripsi (`.encrypt.mp4`) menjadi *link* siap putar menggunakan Proxy API Exsala.
-* ✅ **Clean & Professional Code:** Struktur kode modular, penamaan file *output* dinamis sesuai *keyword*, dan bersih dari komentar *spam*.
+Versi **V5.9.0** menghadirkan peningkatan signifikan pada sisi **network layer, anti-bot bypass, dan decryption engine**, menjadikannya stabil untuk sistem dengan proteksi tinggi seperti Akamai & Aliyun.
 
 ---
 
-## ⚠️ PERINGATAN KERAS (DISCLAIMER)
+## ⚡ Status
 
-Mohon dibaca dengan teliti sebelum menggunakan script ini:
-
-1.  **TIDAK UNTUK DIPERJUALBELIKAN!**
-    Script ini dibagikan secara **GRATIS** dan *Open Source* untuk tujuan edukasi. Jangan menjadi pihak tidak beretika yang mencoba mengambil keuntungan materi dari kode ini.
-    
-2.  **JANGAN HANYA PAMER JSON**
-    Gunakan script ini untuk belajar struktur API, *HTTP Request*, sistem *Pagination*, dan *Data Mining*. Pahami kodenya, jangan cuma asal eksekusi.
-
-3.  **STATUS TOKEN & API**
-    Token dan Signature disediakan oleh server **Exsala API / NB Community**.
-    * Token bersifat *shared*.
-    * **Token bisa dibekukan (banned)** jika terjadi penyalahgunaan (spam request berlebihan tanpa *delay*). Script ini sudah dibekali *delay* otomatis untuk mengelabui proteksi.
+- ✅ Stable & Fully Working  
+- ✅ Anti-Shadowban System  
+- ✅ Akamai WAF Bypass Ready  
+- ✅ VIP Content Decryption Enabled  
 
 ---
 
-## 🛠️ Fitur & Menu Tersedia
+## 🧠 Core Technology
 
-Script ini menyediakan 9 menu scraping yang komprehensif:
-
-1.  **Search Drama:** Cari drama dengan fitur *Smart Filter* (Trending/Latest/Unwatched) & *Auto-Pagination*.
-2.  **Latest / Newest:** Daftar drama terbaru rilis (*Full Auto-Pagination*).
-3.  **For You / Recommended:** Rekomendasi drama berdasarkan algoritma.
-4.  **Coming Soon:** Daftar drama yang akan tayang (beserta konversi waktu rilis lokal).
-5.  **Top Ranking / Charts:** Scraping Leaderboard (Sedang Tren, Pencarian Populer, Terbaru).
-6.  **VIP / Weekly Selection:** Daftar drama eksklusif pilihan editor.
-7.  **Classify (Jelajah):** Browsing semua drama berdasarkan kategori (*Full Auto-Pagination*).
-8.  **Get Episodes (Raw Data):** Ekstraksi metadata episode mentah (termasuk array `cdnList` yang berisi URL Video).
-9.  **Decrypt Video URL:** Mengubah URL video mentah yang terenkripsi menjadi URL streaming murni menggunakan Exsala Proxy.
+- **Cloud Crypto Signature** — Vercel-based Node engine  
+- **Akamai WAF Bypass** — Raw TLS Socket (HTTP/1.1)  
+- **SOCKS5 Auto-Rotation** — Intelligent IP switching  
+- **Aliyun AES Decryptor** — Direct `.encrypt.mp4` processing  
 
 ---
 
-## ℹ️ Informasi Teknis
+## ⚠️ Important Notice
 
-Script ini mensimulasikan *request* persis seperti aplikasi Android aslinya:
+Dramabox menggunakan sistem proteksi ketat:
 
-* **App Version Simulated:** `5.6.1`
-* **Header Params:** `p: 60`, `vn: 5.6.1`, `apn: 1`
-* **Signature:** Generated via Remote Vercel API.
-* **Decryptor Engine:** `https://exsalapi.my.id/api/tools/dramabox/decrypt-video`
+- Akamai WAF  
+- Aliyun Security Layer  
+- IP-based Shadowban  
 
-### Endpoint Coverage:
-* `/search/search` (Advanced Search)
-* `/he001/theater` (Latest, VIP, For You)
-* `/he001/rank` (Top Charts)
-* `/he001/reserveBook` (Coming Soon)
-* `/he001/classify` (Categories)
-* `/chapterv2/batch/load` (Raw Episodes & CDN Links)
+Jika terkena limit, server tetap merespon namun **tanpa data (empty response)**.
 
----
+### 🔐 Best Practice
 
-## 📦 Cara Install & Jalankan
-
-Pastikan Anda sudah menginstall [Node.js](https://nodejs.org/) di perangkat Anda (PC/Termux/VPS).
-
-1.  **Clone Repository ini**
-    ```bash
-    git clone [https://github.com/giienew/dramabox-scraper](https://github.com/giienew/dramabox-scraper)
-    cd dramabox-scraper
-    ```
-
-2.  **Install Module yang Dibutuhkan**
-    ```bash
-    npm install axios readline fs https
-    ```
-    *(Atau cukup ketik `npm install` jika file package.json sudah tersedia)*
-
-3.  **Jalankan Script**
-    ```bash
-    node dramabox.js
-    ```
+- Gunakan **proxy (SOCKS5)**  
+- Hindari request berlebihan  
+- Gunakan rotasi IP  
 
 ---
 
-## 📂 Struktur Output File
+## 🛡️ Proxy & API Integration
 
-Hasil scraping akan disimpan secara otomatis dalam format JSON yang rapi dan terfilter regex:
+Script mendukung integrasi dengan **Exsala API** untuk:
 
-* `search_[Kategori]_[Keyword].json`
-* `latest_full_release.json`
-* `vip_exclusive.json`
-* `foryou_recommended.json`
-* `rank_[NamaKategori].json`
-* `coming_soon.json`
-* `classify_full.json`
-* `raw_episodes_[BookID].json`
+- Proxy Pool Automation  
+- Token Rotation  
+- VIP Decryption  
+
+### Konfigurasi:
+
+```js
+EXSALA_PROXY_API
+```
+
+Bisa menggunakan:
+- Exsala API (recommended)  
+- Proxy pribadi (custom endpoint)  
+
+---
+
+## 🚀 What's New — V5.9.0
+
+### 1. Akamai WAF Bypass
+Menggunakan `tls.connect` untuk koneksi HTTP/1.1 berbasis socket, menghindari deteksi library standar.
+
+### 2. SOCKS5 Auto-Rotation
+- Deteksi shadowban  
+- Rotasi IP & token otomatis  
+- Retry hingga data valid  
+
+### 3. AES Decryption Engine
+- AES-128-ECB  
+- Tanpa emulator / Frida  
+- Direct processing  
+
+### 4. Smart Pagination
+- Auto-detect `pages` & `isMore`  
+- Crawling efisien  
+- Delay natural  
+
+### 5. Advanced Search
+- Trending  
+- Latest  
+- Unwatched  
+
+---
+
+## 🧩 Features
+
+- 🔍 Search Drama  
+- 🆕 Latest Releases  
+- 🎯 Recommendation (FYP)  
+- ⏳ Coming Soon  
+- 📊 Top Rankings  
+- 💎 VIP Content  
+- 🗂️ Category Browser  
+- 📦 Raw Episode Extraction  
+- 🔓 Decrypt Video URL  
+
+---
+
+## 📦 Installation
+
+Pastikan Node.js sudah terinstall:  
+https://nodejs.org/
+
+### 1. Clone Repo
+
+```bash
+git clone https://github.com/giienew/dramabox-scraper
+cd dramabox-scraper
+```
+
+### 2. Install Dependencies
+
+```bash
+npm install axios readline fs tls zlib crypto socks
+```
+
+### 3. Run
+
+```bash
+node dramabox.js
+```
+
+---
+
+## 📁 Output
+
+```
+search_[category]_[keyword].json
+latest_full_release.json
+vip_exclusive.json
+foryou_recommended.json
+rank_[category].json
+coming_soon.json
+classify_full.json
+raw_episodes_[bookId].json
+```
+
+---
+
+## ⚖️ Disclaimer
+
+- Open-source untuk edukasi  
+- Tidak untuk diperjualbelikan  
+- Gunakan untuk pembelajaran:
+  - API Structure  
+  - HTTP Networking  
+  - TLS Socket  
+  - Pagination  
+  - Decryption  
+
+Semua risiko penggunaan ditanggung pengguna.
 
 ---
 
 ## 🤝 Credits
 
-* **Author:** Gienetic
-* **Decryptor Engine:** Exsala API
-* **Provider:** NB Community
+- Author: Gienetic  
+- Engine: Exsala API  
+- Community: NB Community  
 
-*Dibuat dengan ❤️ dan Kopi. Silakan fork, pelajari, dan kembangkan!*
+---
+
+## ☕ Notes
+
+Project ini dibuat untuk eksplorasi:
+
+- Reverse Engineering  
+- Network Analysis  
+- API Automation  
+
+Silakan fork dan kembangkan.
